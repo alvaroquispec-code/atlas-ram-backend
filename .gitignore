@@ -1,0 +1,44 @@
+# Compilados
+target/
+build/
+*.class
+*.jar
+*.war
+
+# Maven / Gradle
+!.mvn/wrapper/maven-wrapper.jar
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Entorno — NUNCA commitear
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+application-local.properties
+application-secret.yml
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Logs y temporales
+logs/
+*.log
+tmp/
+
+# Datos locales
+/data/
+postgres-data/
+uploads/
