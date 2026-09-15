@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name="isolate")
@@ -42,4 +44,23 @@ public class Isolate {
     @ManyToOne(fetch=FetchType.LAZY, optional = false)
     @JoinColumn(name="microorganism_id", nullable = false)
     private Microorganism microorganism;
+
+    @OneToMany(
+            mappedBy = "isolate",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    private List<SusceptibilityResult> results= new ArrayList<>();
+
+    public void addResult(SusceptibilityResult result) {
+        results.add(result);
+        result.setIsolate(this);
+    }
+
+    public void removeResult(SusceptibilityResult result) {
+        results.remove(result);
+        result.setIsolate(null);
+    }
+
 }
