@@ -30,5 +30,4 @@ public class Facility {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "district_id", nullable = false)
     private District district;
-
 }
