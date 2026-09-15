@@ -40,3 +40,14 @@ docker compose logs -f db # ver logs de PostgreSQL
 **La app no conecta a la base:** revisa que `docker compose ps` muestre `healthy` y que las credenciales del `.env` coincidan con las del compose.
 
 **Tests fallan en CI pero pasan en local:** casi siempre son variables de entorno faltantes en el workflow, o tests que dependen del orden de ejecución.
+
+
+## Notas importantes
+
+- PostgreSQL corre en el puerto **5433**, no en el 5432. Si tienes PostgreSQL
+  instalado en Windows, ocupa el 5432 y la app no conectaría.
+- Usa **JDK 21**, no una versión mayor. El CI compila con 21.
+- El `.env` lo lee Docker, no Spring. Los valores por defecto de
+  `application.properties` ya apuntan a la base local.
+- Si Postgres rechaza la contraseña: `docker compose down -v` y vuelve a
+  levantar. El volumen guarda la contraseña con la que nació.
