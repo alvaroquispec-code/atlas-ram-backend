@@ -7,6 +7,9 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 
+import java.util.HashSet;
+import java.util.Set;
+
 
 @Entity
 @Table(name="facility")
@@ -30,4 +33,12 @@ public class Facility {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "district_id", nullable = false)
     private District district;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "facility_antibiotic_panel",
+            joinColumns = @JoinColumn(name = "facility_id"),
+            inverseJoinColumns = @JoinColumn(name = "antibiotic_id")
+    )
+    private Set<Antibiotic> antibioticPanel = new HashSet<>();
 }
