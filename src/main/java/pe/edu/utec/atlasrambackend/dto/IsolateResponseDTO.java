@@ -11,5 +11,8 @@ public record IsolateResponseDTO(
         Integer patientAge,
         String patientSex,
         String facilityName,
-        String microorganismName
+        String districtUbigeo,
+        String districtName,
+        String microorganismName,
+        Long dataUploadId
 ) {}

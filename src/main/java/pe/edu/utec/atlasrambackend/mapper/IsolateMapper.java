@@ -2,6 +2,7 @@ package pe.edu.utec.atlasrambackend.mapper;
 
 import org.springframework.stereotype.Component;
 import pe.edu.utec.atlasrambackend.dto.IsolateResponseDTO;
+import pe.edu.utec.atlasrambackend.model.District;
 import pe.edu.utec.atlasrambackend.model.Isolate;
 import pe.edu.utec.atlasrambackend.model.Microorganism;
 
@@ -13,6 +14,8 @@ public class IsolateMapper {
         String organismName = m.getSpecies() == null
                 ? m.getGenus()
                 : m.getGenus() + " " + m.getSpecies();
+        District d = i.getDistrict();
+        Long uploadId = i.getDataUpload() == null ? null : i.getDataUpload().getId();
 
         return new IsolateResponseDTO(
                 i.getId(),
@@ -21,7 +24,10 @@ public class IsolateMapper {
                 i.getPatientAge(),
                 i.getPatientSex(),
                 i.getFacility().getName(),
-                organismName
+                d == null ? null : d.getUbigeo(),
+                d == null ? null : d.getName(),
+                organismName,
+                uploadId
         );
     }
 }

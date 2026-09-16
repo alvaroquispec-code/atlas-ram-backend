@@ -12,5 +12,6 @@ public record CreateIsolateDTO(
         Integer patientAge,
         String patientSex,
         @NotNull Long facilityId,
+        Long districtId,
         @NotNull Long microorganismId
 ) {}
