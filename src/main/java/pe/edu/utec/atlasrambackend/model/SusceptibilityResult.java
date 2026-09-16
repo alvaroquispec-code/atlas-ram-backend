@@ -47,5 +47,13 @@ public class SusceptibilityResult {
     @Column(nullable = false, length = 20)
     private Interpretation interpretation;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reported_interpretation", length = 20)
+    private Interpretation reportedInterpretation;
 
+    @Column(name = "breakpoint_standard", length = 20)
+    private String breakpointStandard;
+
+    @Column(name = "breakpoint_version", length = 10)
+    private String breakpointVersion;
 }

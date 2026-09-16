@@ -3,6 +3,7 @@ package pe.edu.utec.atlasrambackend.repository;
 import pe.edu.utec.atlasrambackend.model.SusceptibilityResult;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,7 +15,6 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
     List<SusceptibilityResult> findByIsolateId(Long isolateId);
 
     boolean existsByIsolateIdAndAntibioticId(Long isolateId, Long antibioticId);
-
 
     @Query("""
             select new pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO(
@@ -28,9 +28,8 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
             join r.isolate i
             join i.microorganism m
             join r.antibiotic a
-            join i.facility f
             where (:microorganismId is null or m.id = :microorganismId)
-              and (:districtId is null or f.district.id = :districtId)
+              and (:districtId is null or i.aggregationDistrictId = :districtId)
               and i.collectionDate between :from and :to
             group by m.genus, m.species, a.name
             having count(r) >= 30
@@ -41,4 +40,18 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
             @Param("districtId") Long districtId,
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
+
+    @Query("""
+            select count(r) from SusceptibilityResult r
+            where r.reportedInterpretation is not null
+              and r.reportedInterpretation <> r.interpretation
+            """)
+    long countDiscordantWithReported();
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            delete from SusceptibilityResult r
+            where r.isolate.id in (select i.id from Isolate i where i.dataUpload.id = :uploadId)
+            """)
+    int deleteByDataUploadId(@Param("uploadId") Long uploadId);
 }

@@ -15,7 +15,10 @@ public class SusceptibilityResultMapper {
                 r.getAntibiotic().getName(),
                 r.getMicValue(),
                 r.getDiskDiffusionMm(),
-                r.getInterpretation()
+                r.getInterpretation(),
+                r.getReportedInterpretation(),
+                r.getBreakpointStandard(),
+                r.getBreakpointVersion()
         );
     }
 }

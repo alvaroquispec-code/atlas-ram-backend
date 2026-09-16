@@ -11,5 +11,5 @@ public record CreateSusceptibilityResultDTO(
         @NotNull Long antibioticId,
         @Positive BigDecimal micValue,
         Integer diskDiffusionMm,
-        @NotNull Interpretation interpretation
+        Interpretation reportedInterpretation
 ) {}

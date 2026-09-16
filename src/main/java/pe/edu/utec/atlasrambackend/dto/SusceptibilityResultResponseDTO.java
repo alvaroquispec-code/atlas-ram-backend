@@ -11,5 +11,8 @@ public record SusceptibilityResultResponseDTO(
         String antibioticName,
         BigDecimal micValue,
         Integer diskDiffusionMm,
-        Interpretation interpretation
+        Interpretation interpretation,
+        Interpretation reportedInterpretation,
+        String breakpointStandard,
+        String breakpointVersion
 ) {}
