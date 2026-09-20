@@ -9,4 +9,8 @@ public interface BreakpointRepository extends JpaRepository<Breakpoint, Long> {
 
     Optional<Breakpoint> findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
             Long microorganismId, Long antibioticId, String standard, String version);
+
+    boolean existsByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+            Long microorganismId, Long antibioticId, String standard, String version);
 }
+

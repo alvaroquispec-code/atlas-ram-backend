@@ -1,4 +1,18 @@
 package pe.edu.utec.atlasrambackend.dto;
 
-public class BreakpointResponseDTO {
-}
+
+import java.math.BigDecimal;
+
+
+public record BreakpointResponseDTO(
+        Long id,
+        Long microorganismId,
+        String microorganismCode,
+        Long antibioticId,
+        String antibioticCode,
+        String standard,
+        String version,
+        BigDecimal susceptibleMax,
+        BigDecimal resistantMin
+) {}
+

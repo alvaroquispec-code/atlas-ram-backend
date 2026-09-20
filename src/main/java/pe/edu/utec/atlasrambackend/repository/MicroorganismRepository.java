@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface MicroorganismRepository extends JpaRepository<Microorganism, Long> {
     Optional<Microorganism> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

@@ -7,5 +7,7 @@ import java.util.Optional;
 
 public interface FacilityRepository extends JpaRepository<Facility, Long> {
     Optional<Facility> findByCode(String code);
+
+    boolean existsByCode(String code);
     List<Facility> findByDistrictId(Long districtId);
 }
