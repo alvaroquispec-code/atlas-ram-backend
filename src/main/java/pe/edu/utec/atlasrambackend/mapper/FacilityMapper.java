@@ -14,7 +14,7 @@ public class FacilityMapper {
                 f.getId(),
                 f.getCode(),
                 f.getName(),
-                f.getDistrict().getUbigeo(),
+                f.getDistrict().getId(),
                 f.getDistrict().getName()
         );
     }
