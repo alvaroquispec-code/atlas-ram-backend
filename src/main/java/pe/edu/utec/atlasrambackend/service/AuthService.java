@@ -10,6 +10,9 @@ import pe.edu.utec.atlasrambackend.dto.AuthResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.LoginRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RefreshRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RegisterRequestDTO;
+import pe.edu.utec.atlasrambackend.exception.DuplicateResourceException;
+import pe.edu.utec.atlasrambackend.exception.InvalidCredentialsException;
+import pe.edu.utec.atlasrambackend.exception.InvalidTokenException;
 import pe.edu.utec.atlasrambackend.model.Role;
 import pe.edu.utec.atlasrambackend.model.User;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
@@ -35,7 +38,7 @@ public class AuthService {
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO dto, boolean requestedByAdmin) {
         if (userRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("El correo ya está registrado: " + dto.email());
+            throw new DuplicateResourceException("un usuario", "el correo", dto.email());
         }
         User user = new User();
         user.setEmail(dto.email());
@@ -51,7 +54,7 @@ public class AuthService {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
         User user = userRepository.findByEmail(dto.email())
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new InvalidCredentialsException(
                         "Usuario autenticado sin registro: " + dto.email()));
         return tokensFor(user);
     }
@@ -60,11 +63,11 @@ public class AuthService {
     public AuthResponseDTO refresh(RefreshRequestDTO dto) {
         String email = jwtService.extractEmailFromRefreshToken(dto.refreshToken());
         if (email == null) {
-            throw new IllegalArgumentException("El refresh token es inválido o expiró");
+            throw new InvalidTokenException("El refresh token es inválido o expiró");
         }
         User user = userRepository.findByEmail(email)
                 .filter(User::isActive)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario inactivo o inexistente"));
+                .orElseThrow(() -> new InvalidTokenException("Usuario inactivo o inexistente"));
         return tokensFor(user);
     }
 
