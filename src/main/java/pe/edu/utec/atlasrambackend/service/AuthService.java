@@ -10,13 +10,12 @@ import pe.edu.utec.atlasrambackend.dto.AuthResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.LoginRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RefreshRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RegisterRequestDTO;
-import pe.edu.utec.atlasrambackend.model.Role;
-import pe.edu.utec.atlasrambackend.model.User;
-import pe.edu.utec.atlasrambackend.repository.UserRepository;
 import pe.edu.utec.atlasrambackend.exception.DuplicateResourceException;
 import pe.edu.utec.atlasrambackend.exception.InvalidCredentialsException;
 import pe.edu.utec.atlasrambackend.exception.InvalidTokenException;
-
+import pe.edu.utec.atlasrambackend.model.Role;
+import pe.edu.utec.atlasrambackend.model.User;
+import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
 @Service
 public class AuthService {
@@ -36,6 +35,7 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
+    @Transactional
     public AuthResponseDTO register(RegisterRequestDTO dto, boolean requestedByAdmin) {
         if (userRepository.existsByEmail(dto.email())) {
             throw new DuplicateResourceException("un usuario", "el correo", dto.email());
@@ -49,7 +49,6 @@ public class AuthService {
         return tokensFor(userRepository.save(user));
     }
 
-
     @Transactional(readOnly = true)
     public AuthResponseDTO login(LoginRequestDTO dto) {
         authenticationManager.authenticate(
@@ -59,7 +58,6 @@ public class AuthService {
                         "Usuario autenticado sin registro: " + dto.email()));
         return tokensFor(user);
     }
-
 
     @Transactional(readOnly = true)
     public AuthResponseDTO refresh(RefreshRequestDTO dto) {
@@ -72,7 +70,6 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidTokenException("Usuario inactivo o inexistente"));
         return tokensFor(user);
     }
-
 
     private AuthResponseDTO tokensFor(User user) {
         return AuthResponseDTO.of(

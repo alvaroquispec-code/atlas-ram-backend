@@ -1,7 +1,7 @@
 package pe.edu.utec.atlasrambackend.repository;
 
-import pe.edu.utec.atlasrambackend.model.Breakpoint;
 import org.springframework.data.jpa.repository.JpaRepository;
+import pe.edu.utec.atlasrambackend.model.Breakpoint;
 
 import java.util.Optional;
 
@@ -13,4 +13,3 @@ public interface BreakpointRepository extends JpaRepository<Breakpoint, Long> {
     boolean existsByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
             Long microorganismId, Long antibioticId, String standard, String version);
 }
-

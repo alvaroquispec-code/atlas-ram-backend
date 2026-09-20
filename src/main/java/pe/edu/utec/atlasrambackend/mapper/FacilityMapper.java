@@ -14,7 +14,7 @@ public class FacilityMapper {
                 f.getId(),
                 f.getCode(),
                 f.getName(),
-                f.getDistrict().getId(),
+                f.getDistrict().getUbigeo(),
                 f.getDistrict().getName()
         );
     }
@@ -27,5 +27,3 @@ public class FacilityMapper {
         return facility;
     }
 }
-
-
