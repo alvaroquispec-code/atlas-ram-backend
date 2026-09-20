@@ -4,9 +4,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.config.JwtService;
 import pe.edu.utec.atlasrambackend.dto.AuthResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.LoginRequestDTO;
+import pe.edu.utec.atlasrambackend.dto.RefreshRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RegisterRequestDTO;
 import pe.edu.utec.atlasrambackend.model.Role;
 import pe.edu.utec.atlasrambackend.model.User;
@@ -30,32 +32,49 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    public AuthResponseDTO register(RegisterRequestDTO dto) {
+    @Transactional
+    public AuthResponseDTO register(RegisterRequestDTO dto, boolean requestedByAdmin) {
         if (userRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("El correo ya está registrado");
+            throw new IllegalArgumentException("El correo ya está registrado: " + dto.email());
         }
-
         User user = new User();
         user.setEmail(dto.email());
         user.setPasswordHash(passwordEncoder.encode(dto.password()));
         user.setFullName(dto.fullName());
-        user.setRole(Role.PUBLIC_VIEWER);
+        user.setRole(requestedByAdmin && dto.role() != null ? dto.role() : Role.PUBLIC_VIEWER);
         user.setActive(true);
-
-        User saved = userRepository.save(user);
-
-        String token = jwtService.generateToken(saved.getEmail(), saved.getRole().name());
-        return new AuthResponseDTO(token, saved.getEmail(), saved.getFullName(), saved.getRole());
+        return tokensFor(userRepository.save(user));
     }
 
+    @Transactional(readOnly = true)
     public AuthResponseDTO login(LoginRequestDTO dto) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.email(), dto.password()));
-
         User user = userRepository.findByEmail(dto.email())
-                .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas"));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Usuario autenticado sin registro: " + dto.email()));
+        return tokensFor(user);
+    }
 
-        String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
-        return new AuthResponseDTO(token, user.getEmail(), user.getFullName(), user.getRole());
+    @Transactional(readOnly = true)
+    public AuthResponseDTO refresh(RefreshRequestDTO dto) {
+        String email = jwtService.extractEmailFromRefreshToken(dto.refreshToken());
+        if (email == null) {
+            throw new IllegalArgumentException("El refresh token es inválido o expiró");
+        }
+        User user = userRepository.findByEmail(email)
+                .filter(User::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario inactivo o inexistente"));
+        return tokensFor(user);
+    }
+
+    private AuthResponseDTO tokensFor(User user) {
+        return AuthResponseDTO.of(
+                jwtService.generateAccessToken(user.getEmail(), user.getRole()),
+                jwtService.generateRefreshToken(user.getEmail()),
+                jwtService.getAccessExpirationSeconds(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole());
     }
 }
