@@ -1,4 +1,10 @@
 package pe.edu.utec.atlasrambackend.event;
 
-public class UploadFailedEvent {
-}
+public record UploadFailedEvent(
+        Long uploadId,
+        String fileName,
+        String userEmail,
+        String userFullName,
+        String reason
+) {}
+

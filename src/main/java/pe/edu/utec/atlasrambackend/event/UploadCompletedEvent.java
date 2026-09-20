@@ -1,4 +1,11 @@
 package pe.edu.utec.atlasrambackend.event;
 
-public class UploadCompletedEvent {
-}
+public record UploadCompletedEvent(
+        Long uploadId,
+        String fileName,
+        String userEmail,
+        String userFullName,
+        int totalRows,
+        int processedRows,
+        int failedRows
+) {}

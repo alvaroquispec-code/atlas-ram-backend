@@ -1,4 +1,11 @@
 package pe.edu.utec.atlasrambackend.event;
 
-public class ResistanceAlertEvent {
-}
+public record ResistanceAlertEvent(
+        Long facilityId,
+        String facilityName,
+        String microorganismName,
+        String antibioticName,
+        double resistancePercentage,
+        long totalTested
+) {}
+
