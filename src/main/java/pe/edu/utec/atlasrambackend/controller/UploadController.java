@@ -9,6 +9,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pe.edu.utec.atlasrambackend.dto.DataUploadResponseDTO;
+import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
+import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
 import pe.edu.utec.atlasrambackend.mapper.DataUploadMapper;
 import pe.edu.utec.atlasrambackend.model.DataUpload;
 import pe.edu.utec.atlasrambackend.model.Facility;
@@ -44,22 +46,21 @@ public class UploadController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('LAB_TECHNICIAN', 'ADMIN')")
+    @PreAuthorize("@facilityAccess.canAccess(authentication, #facilityId)")
     public ResponseEntity<DataUploadResponseDTO> upload(
             @RequestParam("file") @NotNull MultipartFile file,
             @RequestParam("facilityId") Long facilityId,
             @AuthenticationPrincipal UserDetails principal) throws IOException {
 
         if (file.isEmpty()) {
-            throw new IllegalArgumentException("El archivo está vacío");
+            throw new BusinessRuleException("El archivo está vacío");
         }
 
         User user = userRepository.findByEmail(principal.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", principal.getUsername()));
 
         Facility facility = facilityRepository.findById(facilityId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Establecimiento no encontrado: " + facilityId));
+                .orElseThrow(() -> new ResourceNotFoundException("Establecimiento", facilityId));
 
         DataUpload upload = new DataUpload();
         upload.setFileName(file.getOriginalFilename());
@@ -74,14 +75,6 @@ public class UploadController {
                 .body(mapper.toResponse(saved));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<DataUploadResponseDTO> getById(@PathVariable Long id) {
-        DataUpload upload = uploadRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Carga no encontrada: " + id));
-        return ResponseEntity.ok(mapper.toResponse(upload));
-    }
-
     @GetMapping("/active")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<DataUploadResponseDTO>> getActive() {
@@ -90,4 +83,3 @@ public class UploadController {
         return ResponseEntity.ok(active);
     }
 }
-
