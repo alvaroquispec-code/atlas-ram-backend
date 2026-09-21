@@ -35,6 +35,7 @@ public class UploadService {
     private final AntibioticRepository antibioticRepository;
     private final IsolateRepository isolateRepository;
     private final InterpretationService interpretationService;
+    private final AlertService alertService;
     private final EventPublisher eventPublisher;
 
     public UploadService(CsvParser csvParser,
@@ -45,6 +46,7 @@ public class UploadService {
                          AntibioticRepository antibioticRepository,
                          IsolateRepository isolateRepository,
                          InterpretationService interpretationService,
+                         AlertService alertService,
                          EventPublisher eventPublisher) {
         this.csvParser = csvParser;
         this.uploadRepository = uploadRepository;
@@ -54,6 +56,7 @@ public class UploadService {
         this.antibioticRepository = antibioticRepository;
         this.isolateRepository = isolateRepository;
         this.interpretationService = interpretationService;
+        this.alertService = alertService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -99,6 +102,8 @@ public class UploadService {
                     upload.getUploadedBy().getEmail(),
                     upload.getUploadedBy().getFullName(),
                     rows.size(), processed, rows.size() - processed));
+
+            alertService.checkAfterUpload(upload.getFacility());
 
         } catch (Exception e) {
             log.error("Carga {} falló: {}", uploadId, e.getMessage(), e);
