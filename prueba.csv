@@ -1,0 +1,6 @@
+fecha_toma,tipo_muestra,edad,sexo,codigo_establecimiento,ubigeo_residencia,codigo_microorganismo,codigo_antibiotico,cim,interpretacion_laboratorio
+2026-08-15,URINE,54,F,HNCH,150101,eco,CIP,2,RESISTANT
+2026-08-15,URINE,54,F,HNCH,150101,eco,CRO,0.25,SUSCEPTIBLE
+2026-08-15,URINE,54,F,HNCH,150101,eco,MEM,0.06,SUSCEPTIBLE
+2026-08-16,BLOOD,71,M,HNCH,,sau,OXA,4,RESISTANT
+2026-08-16,BLOOD,71,M,HNCH,,sau,VAN,1,SUSCEPTIBLE
