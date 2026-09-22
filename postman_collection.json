@@ -1,0 +1,2693 @@
+{
+  "info": {
+    "name": "Atlas RAM API",
+    "description": "API de Atlas RAM: plataforma de antibiogramas acumulados para terapia empírica.\n\n**Uso:** ejecutar primero *1. Autenticación → Iniciar sesión (admin)*. El token se guarda solo y todas las peticiones protegidas lo usan.\n\nPor defecto apunta al despliegue en AWS. Para probar en local, cambiar `baseUrl` por el valor de `localUrl`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://3.85.201.152:8080/api/v1"
+    },
+    {
+      "key": "localUrl",
+      "value": "http://localhost:8080/api/v1"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@atlasram.test"
+    },
+    {
+      "key": "technicianEmail",
+      "value": "lab.hnch@atlasram.test"
+    },
+    {
+      "key": "password",
+      "value": "AtlasRam2026!"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "technicianToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "uploadId",
+      "value": "1"
+    },
+    {
+      "key": "userId",
+      "value": "2"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticación",
+      "description": "Registro, inicio de sesión y renovación de tokens. El login guarda automáticamente el token en las variables de la colección.",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Crea una cuenta nueva. Por seguridad, todo usuario registrado recibe el rol PUBLIC_VIEWER; solo un administrador puede elevarlo. La contraseña debe tener al menos 8 caracteres.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo.usuario@atlasram.test\",\n  \"password\": \"Registro2026!\",\n  \"fullName\": \"Usuario de Prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201 o 409\", () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Correo duplicado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                },
+                "description": "Crea una cuenta nueva. Por seguridad, todo usuario registrado recibe el rol PUBLIC_VIEWER; solo un administrador puede elevarlo. La contraseña debe tener al menos 8 caracteres.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"nuevo.usuario@atlasram.test\",\n  \"password\": \"Registro2026!\",\n  \"fullName\": \"Usuario de Prueba\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"El correo ya está registrado\",\n  \"path\": \"/api/v1/auth/register\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Devuelve un token de acceso de una hora y un token de renovación. El script de pruebas los guarda en accessToken y refreshToken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set(\"accessToken\", r.accessToken);",
+                  "pm.collectionVariables.set(\"refreshToken\", r.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Login correcto",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Devuelve un token de acceso de una hora y un token de renovación. El script de pruebas los guarda en accessToken y refreshToken.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzUxMiJ9...\",\n  \"refreshToken\": \"eyJhbGciOiJIUzUxMiJ9...\",\n  \"tokenType\": \"Bearer\",\n  \"expiresInSeconds\": 3600,\n  \"email\": \"admin@atlasram.test\",\n  \"fullName\": \"Administrador Atlas RAM\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            {
+              "name": "Credenciales inválidas",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Devuelve un token de acceso de una hora y un token de renovación. El script de pruebas los guarda en accessToken y refreshToken.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 401,\n  \"error\": \"Unauthorized\",\n  \"message\": \"Credenciales inválidas\",\n  \"path\": \"/api/v1/auth/login\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión (técnico de laboratorio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Inicia sesión como LAB_TECHNICIAN. Guarda su token aparte, en technicianToken, para no reemplazar el del administrador.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{technicianEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"technicianToken\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Renovar token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Emite un nuevo token de acceso a partir del token de renovación, sin volver a pedir la contraseña.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set(\"accessToken\", r.accessToken);",
+                  "pm.collectionVariables.set(\"refreshToken\", r.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Usuario actual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Devuelve los datos del usuario autenticado según el token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Distritos",
+      "description": "Distritos de Lima y Callao identificados por su ubigeo del INEI.",
+      "item": [
+        {
+          "name": "Listar distritos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/districts?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "número de página"
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "tamaño de página"
+                }
+              ]
+            },
+            "description": "Lista paginada de distritos. Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/districts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts",
+                "1"
+              ]
+            },
+            "description": "Público. Devuelve 404 si no existe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "No encontrado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/districts/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "districts",
+                    "1"
+                  ]
+                },
+                "description": "Público. Devuelve 404 si no existe.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Recurso no encontrado: 99999\",\n  \"path\": \"/api/v1/districts/99999\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Obtener por ubigeo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/districts/ubigeo/150101",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts",
+                "ubigeo",
+                "150101"
+              ]
+            },
+            "description": "Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/districts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts"
+              ]
+            },
+            "description": "Solo ADMIN. Valida el cuerpo y responde 201. Guarda el id creado para las dos peticiones siguientes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ubigeo\": \"150999\",\n  \"name\": \"Distrito de Prueba\",\n  \"province\": \"Lima\",\n  \"department\": \"Lima\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"districtsId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/districts/{{districtsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts",
+                "{{districtsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Actualiza el registro recién creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ubigeo\": \"150999\",\n  \"name\": \"Distrito de Prueba Editado\",\n  \"province\": \"Lima\",\n  \"department\": \"Lima\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/districts/{{districtsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts",
+                "{{districtsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Elimina el registro de prueba y responde 204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Microorganismos",
+      "description": "Catálogo de microorganismos con código WHONET.",
+      "item": [
+        {
+          "name": "Listar microorganismos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "número de página"
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "tamaño de página"
+                }
+              ]
+            },
+            "description": "Lista paginada de microorganismos. Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms",
+                "1"
+              ]
+            },
+            "description": "Público. Devuelve 404 si no existe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "No encontrado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/microorganisms/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "microorganisms",
+                    "1"
+                  ]
+                },
+                "description": "Público. Devuelve 404 si no existe.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Recurso no encontrado: 99999\",\n  \"path\": \"/api/v1/microorganisms/99999\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Obtener por código WHONET",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms/code/eco",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms",
+                "code",
+                "eco"
+              ]
+            },
+            "description": "Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms"
+              ]
+            },
+            "description": "Solo ADMIN. Valida el cuerpo y responde 201. Guarda el id creado para las dos peticiones siguientes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"tst\",\n  \"genus\": \"Genus\",\n  \"species\": \"prueba\",\n  \"gramStain\": \"NEGATIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"microorganismsId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms/{{microorganismsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms",
+                "{{microorganismsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Actualiza el registro recién creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"tst\",\n  \"genus\": \"Genus\",\n  \"species\": \"editada\",\n  \"gramStain\": \"NEGATIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/microorganisms/{{microorganismsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "microorganisms",
+                "{{microorganismsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Elimina el registro de prueba y responde 204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Antibióticos",
+      "description": "Catálogo de antibióticos con código WHONET y familia.",
+      "item": [
+        {
+          "name": "Listar antibióticos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "número de página"
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "tamaño de página"
+                }
+              ]
+            },
+            "description": "Lista paginada de antibióticos. Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics",
+                "1"
+              ]
+            },
+            "description": "Público. Devuelve 404 si no existe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "No encontrado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/antibiotics/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "antibiotics",
+                    "1"
+                  ]
+                },
+                "description": "Público. Devuelve 404 si no existe.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Recurso no encontrado: 99999\",\n  \"path\": \"/api/v1/antibiotics/99999\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Obtener por código WHONET",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics/code/CIP",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics",
+                "code",
+                "CIP"
+              ]
+            },
+            "description": "Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics"
+              ]
+            },
+            "description": "Solo ADMIN. Valida el cuerpo y responde 201. Guarda el id creado para las dos peticiones siguientes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"TST\",\n  \"name\": \"Antibiótico de prueba\",\n  \"antibioticClass\": \"Prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"antibioticsId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics/{{antibioticsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics",
+                "{{antibioticsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Actualiza el registro recién creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"TST\",\n  \"name\": \"Antibiótico de prueba editado\",\n  \"antibioticClass\": \"Prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiotics/{{antibioticsId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiotics",
+                "{{antibioticsId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Elimina el registro de prueba y responde 204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Establecimientos",
+      "description": "Establecimientos de salud, cada uno en un distrito.",
+      "item": [
+        {
+          "name": "Listar establecimientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/facilities?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "número de página"
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "tamaño de página"
+                }
+              ]
+            },
+            "description": "Lista paginada de establecimientos. Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/facilities/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities",
+                "1"
+              ]
+            },
+            "description": "Público. Devuelve 404 si no existe.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "No encontrado",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/facilities/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "facilities",
+                    "1"
+                  ]
+                },
+                "description": "Público. Devuelve 404 si no existe.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Recurso no encontrado: 99999\",\n  \"path\": \"/api/v1/facilities/99999\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar por distrito",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/facilities/district/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities",
+                "district",
+                "1"
+              ]
+            },
+            "description": "Público.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities"
+              ]
+            },
+            "description": "Solo ADMIN. Valida el cuerpo y responde 201. Guarda el id creado para las dos peticiones siguientes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"TST01\",\n  \"name\": \"Establecimiento de Prueba\",\n  \"districtId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"facilitiesId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facilities/{{facilitiesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities",
+                "{{facilitiesId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Actualiza el registro recién creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"TST01\",\n  \"name\": \"Establecimiento de Prueba Editado\",\n  \"districtId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/facilities/{{facilitiesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities",
+                "{{facilitiesId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Elimina el registro de prueba y responde 204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Puntos de corte",
+      "description": "Umbrales de interpretación por microorganismo, antibiótico, estándar y versión. Requieren autenticación; crear y editar es solo ADMIN.",
+      "item": [
+        {
+          "name": "Listar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/breakpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "breakpoints"
+              ]
+            },
+            "description": "Autenticado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/breakpoints/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "breakpoints",
+                "1"
+              ]
+            },
+            "description": "Autenticado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/breakpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "breakpoints"
+              ]
+            },
+            "description": "Solo ADMIN. La combinación de microorganismo, antibiótico, estándar y versión es única: repetirla responde 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"microorganismId\": 1,\n  \"antibioticId\": 1,\n  \"standard\": \"CLSI\",\n  \"version\": \"2099\",\n  \"susceptibleMax\": 8,\n  \"resistantMin\": 32\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"breakpointId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/breakpoints/{{breakpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "breakpoints",
+                "{{breakpointId}}"
+              ]
+            },
+            "description": "Solo ADMIN. Actualiza el punto de corte recién creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"microorganismId\": 1,\n  \"antibioticId\": 1,\n  \"standard\": \"CLSI\",\n  \"version\": \"2099\",\n  \"susceptibleMax\": 4,\n  \"resistantMin\": 16\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/breakpoints/{{breakpointId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "breakpoints",
+                "{{breakpointId}}"
+              ]
+            },
+            "description": "Solo ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Aislamientos y resultados",
+      "description": "Aislamientos bacterianos y sus resultados de susceptibilidad. Crear requiere LAB_TECHNICIAN o ADMIN, y el técnico solo puede registrar en sus propios establecimientos.",
+      "item": [
+        {
+          "name": "Listar aislamientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/isolates?facilityId=1&page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates"
+              ],
+              "query": [
+                {
+                  "key": "facilityId",
+                  "value": "1",
+                  "description": "opcional"
+                },
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": ""
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Autenticado. Filtro opcional por establecimiento."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener aislamiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/isolates/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates",
+                "1"
+              ]
+            },
+            "description": "Autenticado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resultados de un aislamiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/isolates/1/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates",
+                "1",
+                "results"
+              ]
+            },
+            "description": "Devuelve la CIM, la interpretación calculada, la reportada por el laboratorio y la versión del punto de corte."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear aislamiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/isolates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates"
+              ]
+            },
+            "description": "LAB_TECHNICIAN o ADMIN. districtId es la residencia del paciente y es opcional. Guarda el id creado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"collectionDate\": \"2026-09-01\",\n  \"specimenType\": \"URINE\",\n  \"patientAge\": 54,\n  \"patientSex\": \"F\",\n  \"facilityId\": 1,\n  \"districtId\": 1,\n  \"microorganismId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"isolateId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar resultado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "La interpretación oficial la calcula el sistema contra el punto de corte vigente. Repetir el mismo antibiótico en un aislamiento responde 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isolateId\": \"{{isolateId}}\",\n  \"antibioticId\": 1,\n  \"micValue\": 0.5,\n  \"diskDiffusionMm\": null,\n  \"reportedInterpretation\": \"SUSCEPTIBLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"resultId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar resultado",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/results/{{resultId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results",
+                "{{resultId}}"
+              ]
+            },
+            "description": "Solo ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar aislamiento",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/isolates/{{isolateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates",
+                "{{isolateId}}"
+              ]
+            },
+            "description": "Solo ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Cargas masivas",
+      "description": "Carga de archivos CSV procesada de forma asíncrona. Solo LAB_TECHNICIAN o ADMIN.",
+      "item": [
+        {
+          "name": "Subir archivo CSV",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads"
+              ]
+            },
+            "description": "Responde 202 Accepted de inmediato y procesa el archivo en segundo plano. Seleccionar un CSV en el campo file. Columnas: fecha_toma, tipo_muestra, edad, sexo, codigo_establecimiento, ubigeo_residencia, codigo_microorganismo, codigo_antibiotico, cim, interpretacion_laboratorio.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "facilityId",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "  pm.test(\"Responde 202\", () => true);",
+                  "  pm.collectionVariables.set(\"uploadId\", pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Carga aceptada",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads"
+                  ]
+                },
+                "description": "Responde 202 Accepted de inmediato y procesa el archivo en segundo plano. Seleccionar un CSV en el campo file. Columnas: fecha_toma, tipo_muestra, edad, sexo, codigo_establecimiento, ubigeo_residencia, codigo_microorganismo, codigo_antibiotico, cim, interpretacion_laboratorio.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "facilityId",
+                      "value": "1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 412,\n  \"fileName\": \"prueba.csv\",\n  \"status\": \"PENDING\",\n  \"totalRows\": null,\n  \"processedRows\": null,\n  \"failedRows\": null,\n  \"errorLog\": null,\n  \"startedAt\": \"2026-09-21T00:36:14Z\",\n  \"finishedAt\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Estado de una carga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/{{uploadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads",
+                "{{uploadId}}"
+              ]
+            },
+            "description": "Consultar varias veces: pasa de PENDING a PROCESSING y a COMPLETED o FAILED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Carga completada",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                },
+                "description": "Consultar varias veces: pasa de PENDING a PROCESSING y a COMPLETED o FAILED."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 412,\n  \"fileName\": \"prueba.csv\",\n  \"status\": \"COMPLETED\",\n  \"totalRows\": 5,\n  \"processedRows\": 5,\n  \"failedRows\": 0,\n  \"errorLog\": null,\n  \"startedAt\": \"2026-09-21T00:36:14Z\",\n  \"finishedAt\": \"2026-09-21T00:36:15Z\"\n}"
+            },
+            {
+              "name": "Carga fallida",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/{{uploadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "{{uploadId}}"
+                  ]
+                },
+                "description": "Consultar varias veces: pasa de PENDING a PROCESSING y a COMPLETED o FAILED."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 413,\n  \"fileName\": \"archivo_invalido.csv\",\n  \"status\": \"FAILED\",\n  \"totalRows\": null,\n  \"processedRows\": null,\n  \"failedRows\": null,\n  \"errorLog\": \"La cabecera no tiene las columnas esperadas: fecha_toma, tipo_muestra, edad, sexo, codigo_establecimiento, ubigeo_residencia, codigo_microorganismo, codigo_antibiotico, cim, interpretacion_laboratorio\",\n  \"startedAt\": \"2026-09-22T09:46:27Z\",\n  \"finishedAt\": \"2026-09-22T09:46:27Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar cargas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": ""
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Paginado, ordenado por fecha."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cargas por estado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/status/FAILED",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads",
+                "status",
+                "FAILED"
+              ]
+            },
+            "description": "Estados: PENDING, PROCESSING, COMPLETED, FAILED, REVERTED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aislamientos de una carga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/{{uploadId}}/isolates/count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads",
+                "{{uploadId}}",
+                "isolates",
+                "count"
+              ]
+            },
+            "description": "Cuántos aislamientos generó la carga."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9. Antibiograma acumulado",
+      "description": "Porcentaje de resistencia por microorganismo y antibiótico. Omite las combinaciones con menos de 30 aislamientos (CLSI M39). Público.",
+      "item": [
+        {
+          "name": "Antibiograma general",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram?from=2025-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2025-01-01",
+                  "description": "obligatorio"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "description": "obligatorio"
+                }
+              ]
+            },
+            "description": "Todas las combinaciones del período. from y to son obligatorios.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Antibiograma",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/antibiogram?from=2025-01-01&to=2026-12-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "antibiogram"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "2025-01-01",
+                      "description": "obligatorio"
+                    },
+                    {
+                      "key": "to",
+                      "value": "2026-12-31",
+                      "description": "obligatorio"
+                    }
+                  ]
+                },
+                "description": "Todas las combinaciones del período. from y to son obligatorios.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"microorganismName\": \"Escherichia coli\",\n    \"antibioticName\": \"Ciprofloxacino\",\n    \"totalTested\": 3242,\n    \"resistantCount\": 1864,\n    \"resistancePercentage\": 57.5\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Antibiograma por microorganismo y distrito",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram?microorganismId=1&districtId=1&from=2025-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram"
+              ],
+              "query": [
+                {
+                  "key": "microorganismId",
+                  "value": "1",
+                  "description": "opcional"
+                },
+                {
+                  "key": "districtId",
+                  "value": "1",
+                  "description": "opcional"
+                },
+                {
+                  "key": "from",
+                  "value": "2025-01-01",
+                  "description": "obligatorio"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "description": "obligatorio"
+                }
+              ]
+            },
+            "description": "Filtros opcionales por microorganismo y por distrito.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10. Usuarios (ADMIN)",
+      "description": "Gestión de usuarios. Todo el controlador requiere rol ADMIN.",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Solo ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener usuario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "1"
+              ]
+            },
+            "description": "Solo ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambiar rol",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/role?role=EPIDEMIOLOGIST",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}",
+                "role"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "EPIDEMIOLOGIST",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Solo ADMIN. Roles: ADMIN, LAB_TECHNICIAN, EPIDEMIOLOGIST, PUBLIC_VIEWER. El ejemplo reasigna al usuario el rol que ya tiene, para no alterar los datos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activar o desactivar",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/active?active=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "active",
+                  "value": "true",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Solo ADMIN. Un usuario inactivo no puede iniciar sesión."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11. Casos de error",
+      "description": "Ejemplos del formato de error uniforme del GlobalExceptionHandler.",
+      "item": [
+        {
+          "name": "401 sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/isolates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "isolates"
+              ]
+            },
+            "description": "Endpoint protegido sin token.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Sin token",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/isolates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "isolates"
+                  ]
+                },
+                "description": "Endpoint protegido sin token.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 401,\n  \"error\": \"Unauthorized\",\n  \"message\": \"Se requiere un token de acceso válido en el encabezado Authorization\",\n  \"path\": \"/api/v1/isolates\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "403 rol insuficiente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Un técnico de laboratorio intenta listar usuarios, que es solo de ADMIN. Usa el token del técnico.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{technicianToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Sin permisos",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users"
+                  ]
+                },
+                "description": "Un técnico de laboratorio intenta listar usuarios, que es solo de ADMIN. Usa el token del técnico.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{technicianToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timestamp\": \"2026-09-22T08:30:00Z\",\n  \"status\": 403,\n  \"error\": \"Forbidden\",\n  \"message\": \"No tiene permisos para esta operación\",\n  \"path\": \"/api/v1/users\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "404 recurso inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/districts/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts",
+                "99999"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 validación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/districts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "districts"
+              ]
+            },
+            "description": "Cuerpo que no cumple las validaciones.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ubigeo\": \"abc\",\n  \"name\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
