@@ -15,6 +15,7 @@ public class DataUploadMapper {
                 u.getTotalRows(),
                 u.getProcessedRows(),
                 u.getFailedRows(),
+                u.getErrorLog(),
                 u.getStartedAt(),
                 u.getFinishedAt()
         );
