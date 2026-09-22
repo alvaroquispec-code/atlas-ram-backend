@@ -253,7 +253,20 @@ La API centraliza el manejo de errores en un `@ControllerAdvice`, de modo que ni
 }
 ```
 
-Las excepciones personalizadas se agrupan por categoría y cada una se traduce a un código HTTP concreto: recursos inexistentes a `404`, duplicados a `409`, datos inválidos a `400`, falta de autenticación a `401` y falta de permisos a `403`. El manejador también captura las excepciones propias de Spring, como `MethodArgumentNotValidException` para las validaciones de los DTOs y `HttpMessageNotReadableException` para cuerpos mal formados. Las violaciones de restricciones únicas de la base se traducen a `409` identificando la restricción por su nombre.
+Se definieron ocho excepciones personalizadas, y el manejador traduce cada una a un código HTTP:
+
+| Excepción | Código | Cuándo ocurre |
+|---|---|---|
+| `ResourceNotFoundException` | 404 | el recurso solicitado no existe |
+| `DuplicateResourceException` | 409 | se intenta crear un registro que ya existe |
+| `UploadNotRevertableException` | 409 | se intenta revertir una carga que no está completada |
+| `InvalidCredentialsException` | 401 | correo o contraseña incorrectos |
+| `InvalidTokenException` | 401 | token ausente, expirado o mal firmado |
+| `BusinessRuleException` | 422 | la petición es válida pero viola una regla del dominio |
+| `BreakpointNotFoundException` | 422 | no hay punto de corte para interpretar un resultado |
+| `InvalidCsvFormatException` | 400 | el archivo de carga no tiene el formato esperado |
+
+El manejador también captura las excepciones propias de Spring: `MethodArgumentNotValidException` y `HttpMessageNotReadableException` responden `400`, y `DataIntegrityViolationException` responde `409` cuando se viola una restricción de la base. Cualquier otra excepción responde `500` con un mensaje genérico y se registra en el log, sin exponer la traza al cliente.
 
 Manejar los errores de forma global garantiza respuestas consistentes para el cliente, evita filtrar detalles internos y concentra la lógica en un solo lugar.
 
@@ -275,6 +288,7 @@ Manejar los errores de forma global garantiza respuestas consistentes para el cl
 - **Inyección SQL:** todas las consultas usan JPA con parámetros enlazados; no se concatena SQL.
 - **XSS:** la API solo devuelve JSON y no renderiza HTML con datos de usuario.
 - **CSRF:** la protección se desactiva de forma deliberada porque la API es sin estado y no usa cookies de sesión.
+- **CORS:** configurado en Spring Security para controlar qué orígenes pueden llamar a la API desde un navegador.
 - **Validación de entrada:** Bean Validation en todos los DTOs de entrada.
 
 **Limitación conocida:** los tokens de renovación no se persisten, así que no pueden revocarse antes de expirar (ver issue #4).
