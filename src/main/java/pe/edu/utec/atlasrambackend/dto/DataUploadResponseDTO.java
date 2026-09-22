@@ -11,6 +11,7 @@ public record DataUploadResponseDTO(
         Integer totalRows,
         Integer processedRows,
         Integer failedRows,
+        String errorLog,
         Instant startedAt,
         Instant finishedAt
 ) {}
