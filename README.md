@@ -416,7 +416,7 @@ MIT.
 1. Clinical and Laboratory Standards Institute. *M100: Performance Standards for Antimicrobial Susceptibility Testing*.
 2. Clinical and Laboratory Standards Institute. *M39: Analysis and Presentation of Cumulative Antimicrobial Susceptibility Test Data*.
 3. Organización Mundial de la Salud. *Global Antimicrobial Resistance and Use Surveillance System (GLASS)*.
-4. Levy-Blitchtein S. et al. *Emergence and spread of carbapenem-resistant Acinetobacter baumannii in Lima, Peru*. Emerging Microbes & Infections, 2018.
-5. Krapp F. et al. *Carbapenem-resistant Klebsiella pneumoniae in a tertiary hospital in Lima*. Microbiology Spectrum, 2025.
-6. Montañez-Valverde R. et al. *Resistencia de Escherichia coli a ciprofloxacino*. Anales de la Facultad de Medicina, UNMSM, 2015.
+4. Levy-Blitchtein S, Roca I, Plasencia-Rebata S, et al. *Emergence and spread of carbapenem-resistant Acinetobacter baumannii international clones II and III in Lima, Peru*. Emerging Microbes & Infections. 2018;7(1):119. doi:10.1038/s41426-018-0127-9
+5. Krapp F, Cuicapuza D, Salvatierra G, et al. *Emerging carbapenem-resistant Klebsiella pneumoniae in a tertiary care hospital in Lima, Peru*. Microbiology Spectrum. 2025;13(2). doi:10.1128/spectrum.01825-24
+6. Montañez-Valverde RA, Montenegro-Idrogo JJ, Arenas-Significación FR, Vásquez-Alva R. *Infección urinaria alta comunitaria por E. coli resistente a ciprofloxacino: características asociadas en pacientes de un hospital nacional en Perú*. Anales de la Facultad de Medicina. 2015;76(4):385-391.
 7. Ley N.º 29733, Ley de Protección de Datos Personales del Perú.
