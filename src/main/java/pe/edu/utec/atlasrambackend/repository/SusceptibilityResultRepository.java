@@ -2,6 +2,7 @@ package pe.edu.utec.atlasrambackend.repository;
 
 import pe.edu.utec.atlasrambackend.model.SusceptibilityResult;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.DistrictResistanceRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -38,6 +39,25 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
     List<AntibiogramResponseDTO> calculateAntibiogram(
             @Param("microorganismId") Long microorganismId,
             @Param("districtId") Long districtId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
+
+    @Query("""
+            select new pe.edu.utec.atlasrambackend.dto.DistrictResistanceRow(
+                i.aggregationDistrictId,
+                count(r),
+                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end)
+            )
+            from SusceptibilityResult r
+            join r.isolate i
+            where i.microorganism.id = :microorganismId
+              and r.antibiotic.id = :antibioticId
+              and i.collectionDate between :from and :to
+            group by i.aggregationDistrictId
+            """)
+    List<DistrictResistanceRow> calculateResistanceByDistrict(
+            @Param("microorganismId") Long microorganismId,
+            @Param("antibioticId") Long antibioticId,
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
 

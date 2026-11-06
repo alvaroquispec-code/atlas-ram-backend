@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,11 +26,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
+    private final List<String> allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          SecurityExceptionHandler securityExceptionHandler) {
+                          SecurityExceptionHandler securityExceptionHandler,
+                          @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.securityExceptionHandler = securityExceptionHandler;
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Bean
@@ -46,7 +50,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        config.setAllowedOriginPatterns(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
