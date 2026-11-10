@@ -7,12 +7,50 @@
 | **Curso** | CS 2031 Desarrollo Basado en Plataforma |
 | **Universidad** | Universidad de Ingeniería y Tecnología (UTEC), 2026-2 |
 | **Integrantes** | Álvaro Felipe Quispe Carrillo · Joaquim Alexander Carrión Díaz · Fabian Isaias Sanchez Zedano · Adriano Alonso Cosme Salazar |
-| **API desplegada** | `http://3.85.201.152:8080/api/v1` |
+| **API desplegada** | `https://3-85-201-152.sslip.io/api/v1` |
+
+---
+
+## Proyecto 2: aplicación completa
+
+| Componente | URL | Repositorio |
+|---|---|---|
+| **API REST** (Spring Boot) | https://3-85-201-152.sslip.io/api/v1 | este repositorio |
+| **Web** (React) | https://atlas-ram-web.vercel.app | [`atlas-ram-web`](https://github.com/alvaroquispec-code/atlas-ram-web) |
+| **Móvil** (React Native + Expo) | APK_LINK | [`atlas-ram-mobile`](https://github.com/alvaroquispec-code/atlas-ram-mobile) |
+
+Usuario de prueba: `admin@atlasram.test` / `AtlasRam2026!` (datos de demostración). También hay técnicos de laboratorio, como `lab.hnch@atlasram.test`, con la misma contraseña.
+
+### Arquitectura de despliegue
+
+```
+ Web (Vercel, HTTPS) ──┐
+                       ├──► Caddy :443 (HTTPS, Let's Encrypt) ──► Spring Boot :8080 ──► RDS PostgreSQL 16
+ Móvil (APK, HTTPS) ───┘          EC2 t3.micro · Amazon Linux 2023                      (solo acepta al SG del servidor)
+                                                   │
+                                                   └──► Nominatim (OpenStreetMap), llamado desde el móvil
+```
+
+| Pieza | Configuración |
+|---|---|
+| HTTPS | Caddy como proxy inverso con certificado automático de Let's Encrypt sobre `3-85-201-152.sslip.io` |
+| CORS | `CORS_ALLOWED_ORIGINS` en el servidor, con el dominio de Vercel y `localhost` para desarrollo |
+| Secretos | JWT y credenciales de la base solo en variables de entorno del servidor (`/etc/atlasram.env`), fuera del repositorio |
+| Frontends | `VITE_API_URL` (Vercel) y `EXPO_PUBLIC_API_URL` (`eas.json`): ninguna URL está escrita en el código |
+
+### Reparto del trabajo
+
+| Integrante | Responsabilidad |
+|---|---|
+| Álvaro Quispe | Backend, despliegue (AWS, HTTPS, Vercel), web (bloques 2 y 3) y base de la app móvil |
+| Joaquim Carrión | Web: autenticación, cliente API y rutas protegidas |
+| Adriano Cosme | Móvil: escáner QR, registro de aislamientos y publicación con EAS |
 
 ---
 
 ## Índice
 
+- [Proyecto 2: aplicación completa](#proyecto-2-aplicación-completa)
 - [Introducción](#introducción)
 - [Identificación del problema](#identificación-del-problema)
 - [Descripción de la solución](#descripción-de-la-solución)
@@ -314,16 +352,17 @@ Se configuran dos `ThreadPoolTaskExecutor` separados: uno para la ingesta y otro
 
 ## Despliegue
 
-La API está desplegada en AWS en `http://3.85.201.152:8080/api/v1`.
+La API está desplegada en AWS en `https://3-85-201-152.sslip.io/api/v1`.
 
 | Componente | Configuración |
 |---|---|
 | Aplicación | EC2 `t3.micro`, Amazon Linux 2023, Java 21, servicio `systemd` |
 | Base de datos | RDS PostgreSQL 16, `db.t4g.micro`, conexión cifrada |
 | Red | La base solo acepta conexiones desde el grupo de seguridad del servidor |
+| HTTPS | Caddy como proxy inverso delante de Spring Boot, con certificado de Let's Encrypt |
 | Configuración | Variables de entorno en el servidor, fuera del repositorio |
 
-Prueba rápida: `GET http://3.85.201.152:8080/api/v1/districts`
+Prueba rápida: `GET https://3-85-201-152.sslip.io/api/v1/districts`
 
 ---
 
