@@ -281,6 +281,7 @@ Se usan los cuatro tipos de relación de JPA. Todos los `@ManyToOne` son `LAZY` 
 - **CIM en `BigDecimal`.** La comparación contra puntos de corte exige aritmética exacta.
 - **Puntos de corte versionados.** La restricción única combina microorganismo, antibiótico, estándar y versión, de modo que conviven varias versiones del CLSI.
 - **Restricciones con nombre explícito.** `uk_isolate_antibiotic` impide duplicar un antibiótico en un aislamiento, y su nombre es el contrato con el manejador de errores.
+- **Migraciones con Flyway.** El esquema vive en `src/main/resources/db/migration` como SQL versionado (`V1__esquema_inicial.sql`, `V2__…`), y Hibernate corre con `ddl-auto=validate`: si una entidad no coincide con la base, la aplicación no arranca. La base de producción, creada antes con `ddl-auto=update`, se adoptó con un *baseline* en la versión 1, sin volver a ejecutar V1.
 - **Distrito de agregación.** La procedencia del paciente es opcional. Si falta, un campo calculado usa el distrito del establecimiento, sin copiarlo al guardar, para no confundir un dato real con uno inferido.
 
 ---
@@ -396,7 +397,7 @@ cd atlas-ram-backend
 cp .env.example .env          # completar contraseñas y JWT_SECRET
 docker compose up -d          # PostgreSQL en el puerto 5433
 export JWT_SECRET=...         # Spring no lee el .env: la variable debe estar en el entorno
-./mvnw spring-boot:run        # crea las tablas
+./mvnw spring-boot:run        # Flyway crea las tablas (db/migration)
 docker cp db/seed/data.sql atlasram-db:/tmp/data.sql
 docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
 ```
@@ -410,6 +411,7 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
 | `SPRING_DATASOURCE_PASSWORD` | contraseña de la base |
 | `JWT_SECRET` | clave de firma en base64, mínimo 64 bytes |
 | `JWT_EXPIRATION_MS` | vigencia del token de acceso |
+| `JPA_DDL_AUTO` | modo de Hibernate sobre el esquema; por defecto `validate` (el esquema lo maneja Flyway) |
 | `MAIL_ENABLED` | activa el envío real de correos |
 | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` | servidor SMTP |
 
