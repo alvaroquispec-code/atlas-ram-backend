@@ -1,7 +1,7 @@
 -- Atlas RAM: datos de prueba SINTETICOS calibrados con literatura peruana.
 -- No representan la situacion real de ningun establecimiento. El brote es ficticio.
 -- Generado con gen_seed.py (semilla 2031). Contrasena de todos los usuarios: AtlasRam2026!
--- Cargar una sola vez sobre las tablas creadas por Hibernate.
+-- Cargar una sola vez sobre las tablas creadas por Flyway (V1__esquema_inicial.sql).
 
 SET client_encoding = 'UTF8';
 BEGIN;
