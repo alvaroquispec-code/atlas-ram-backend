@@ -7,11 +7,19 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.edu.utec.atlasrambackend.dto.ErrorResponseDTO;
 
 import java.util.LinkedHashMap;
@@ -81,6 +89,56 @@ public class GlobalExceptionHandler {
         log.warn("Violación de integridad en {}", request.getRequestURI(), ex);
         return build(HttpStatus.CONFLICT,
                 "La operación viola una restricción de integridad de la base de datos", request);
+    }
+
+    // @PreAuthorize lanza AccessDeniedException dentro del controlador, así que la atrapa este
+    // advice y no el AccessDeniedHandler de Spring Security. Sin este método caería en el 500.
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleAccessDenied(AccessDeniedException ex,
+                                                               HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "No tiene permiso para realizar esta operación", request);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleNoRoute(NoResourceFoundException ex,
+                                                          HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "La ruta solicitada no existe", request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                                   HttpServletRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED,
+                "El método " + ex.getMethod() + " no está permitido en esta ruta", request);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMediaType(HttpMediaTypeNotSupportedException ex,
+                                                            HttpServletRequest request) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado", request);
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponseDTO> handleBadParameter(Exception ex,
+                                                               HttpServletRequest request) {
+        String message = switch (ex) {
+            case MethodArgumentTypeMismatchException e ->
+                    "El parámetro '" + e.getName() + "' tiene un valor inválido";
+            case MissingServletRequestParameterException e ->
+                    "Falta el parámetro obligatorio '" + e.getParameterName() + "'";
+            case MissingServletRequestPartException e ->
+                    "Falta la parte obligatoria '" + e.getRequestPartName() + "'";
+            default -> "Parámetro inválido";
+        };
+        return build(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleTooLarge(MaxUploadSizeExceededException ex,
+                                                           HttpServletRequest request) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "El archivo supera el tamaño máximo de 20 MB", request);
     }
 
     @ExceptionHandler(Exception.class)

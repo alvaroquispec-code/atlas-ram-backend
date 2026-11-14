@@ -304,7 +304,19 @@ Se definieron ocho excepciones personalizadas, y el manejador traduce cada una a
 | `BreakpointNotFoundException` | 422 | no hay punto de corte para interpretar un resultado |
 | `InvalidCsvFormatException` | 400 | el archivo de carga no tiene el formato esperado |
 
-El manejador también captura las excepciones propias de Spring: `MethodArgumentNotValidException` y `HttpMessageNotReadableException` responden `400`, y `DataIntegrityViolationException` responde `409` cuando se viola una restricción de la base. Cualquier otra excepción responde `500` con un mensaje genérico y se registra en el log, sin exponer la traza al cliente.
+El manejador también captura las excepciones propias de Spring, para que un error del cliente nunca llegue como `500`:
+
+| Excepción de Spring | Código |
+|---|---|
+| `MethodArgumentNotValidException`, `HttpMessageNotReadableException`, parámetro faltante o con tipo inválido | 400 |
+| `AccessDeniedException` (por ejemplo, un técnico que registra en un establecimiento que no tiene asignado) | 403 |
+| `NoResourceFoundException` (ruta inexistente) | 404 |
+| `HttpRequestMethodNotSupportedException` | 405 |
+| `DataIntegrityViolationException` (se viola una restricción de la base) | 409 |
+| `MaxUploadSizeExceededException` (archivo de más de 20 MB) | 413 |
+| `HttpMediaTypeNotSupportedException` | 415 |
+
+`AccessDeniedException` necesita su propio manejador porque `@PreAuthorize` la lanza dentro del controlador: la atrapa el `@ControllerAdvice` y no el `AccessDeniedHandler` de Spring Security. Cualquier otra excepción responde `500` con un mensaje genérico y se registra en el log, sin exponer la traza al cliente.
 
 Manejar los errores de forma global garantiza respuestas consistentes para el cliente, evita filtrar detalles internos y concentra la lógica en un solo lugar.
 
@@ -403,6 +415,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `POST` | `/auth/login` | público |
 | `GET` | `/districts`, `/microorganisms`, `/antibiotics`, `/facilities` | público |
 | `GET` | `/antibiogram` | público |
+| `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates` | autenticado |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
