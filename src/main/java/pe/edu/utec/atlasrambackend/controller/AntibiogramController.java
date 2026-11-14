@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.DistrictResistanceResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
 
 import java.time.LocalDate;
@@ -35,5 +36,18 @@ public class AntibiogramController {
         return ResponseEntity.ok(
                 antibiogramService.calculate(microorganismId, districtId, from, to));
     }
-}
 
+    /**
+     * Resistencia por distrito para el mapa.
+     * Ejemplo: /antibiogram/by-district?microorganismId=1&antibioticId=6&from=2025-01-01&to=2025-12-31
+     */
+    @GetMapping("/by-district")
+    public ResponseEntity<List<DistrictResistanceResponseDTO>> calculateByDistrict(
+            @RequestParam Long microorganismId,
+            @RequestParam Long antibioticId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(
+                antibiogramService.calculateByDistrict(microorganismId, antibioticId, from, to));
+    }
+}
