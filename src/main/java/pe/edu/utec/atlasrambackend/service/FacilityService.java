@@ -2,6 +2,7 @@ package pe.edu.utec.atlasrambackend.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.CreateFacilityDTO;
@@ -46,6 +47,18 @@ public class FacilityService {
         return facilityRepository.findByDistrictId(districtId).stream()
                 .map(facilityMapper::toResponse)
                 .toList();
+    }
+
+    /**
+     * Establecimientos donde el usuario puede registrar aislamientos: todos para quien
+     * tiene alcance global (administrador o epidemiólogo), y solo los asignados para el resto.
+     */
+    @Transactional(readOnly = true)
+    public List<FacilityResponseDTO> findAccessible(String email, boolean globalAccess) {
+        List<Facility> facilities = globalAccess
+                ? facilityRepository.findAll(Sort.by("name"))
+                : facilityRepository.findAssignedTo(email);
+        return facilities.stream().map(facilityMapper::toResponse).toList();
     }
 
     @Transactional
