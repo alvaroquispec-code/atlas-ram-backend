@@ -17,7 +17,7 @@
 |---|---|---|
 | **API REST** (Spring Boot) | https://3-85-201-152.sslip.io/api/v1 | este repositorio |
 | **Web** (React) | https://atlas-ram-web.vercel.app | [`atlas-ram-web`](https://github.com/alvaroquispec-code/atlas-ram-web) |
-| **Móvil** (React Native + Expo) | APK_LINK | [`atlas-ram-mobile`](https://github.com/alvaroquispec-code/atlas-ram-mobile) |
+| **Móvil** (React Native + Expo) | https://expo.dev/accounts/alvaroquispec-code/projects/atlas-ram-mobile/builds/a45b6dd0-ae9e-4586-b6e6-7626764d0d64 | [`atlas-ram-mobile`](https://github.com/alvaroquispec-code/atlas-ram-mobile) |
 
 Usuario de prueba: `admin@atlasram.test` / `AtlasRam2026!` (datos de demostración). También hay técnicos de laboratorio, como `lab.hnch@atlasram.test`, con la misma contraseña.
 
