@@ -18,6 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
 import pe.edu.utec.atlasrambackend.dto.IsolateResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.SusceptibilityResultResponseDTO;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.service.IsolateService;
 import pe.edu.utec.atlasrambackend.service.SusceptibilityResultService;
 
@@ -40,10 +41,10 @@ public class IsolateController {
     @GetMapping
     public ResponseEntity<Page<IsolateResponseDTO>> findAll(
             @RequestParam(required = false) Long facilityId,
+            @RequestParam(required = false) Long microorganismId,
+            @RequestParam(required = false) Specimen specimen,
             @PageableDefault(size = 20, sort = "collectionDate") Pageable pageable) {
-        return ResponseEntity.ok(facilityId == null
-                ? isolateService.findAll(pageable)
-                : isolateService.findByFacility(facilityId, pageable));
+        return ResponseEntity.ok(isolateService.search(facilityId, microorganismId, specimen, pageable));
     }
 
     @GetMapping("/{id}")

@@ -9,9 +9,11 @@ import pe.edu.utec.atlasrambackend.dto.IsolateResponseDTO;
 import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
 import pe.edu.utec.atlasrambackend.mapper.IsolateMapper;
 import pe.edu.utec.atlasrambackend.model.Isolate;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.repository.DistrictRepository;
 import pe.edu.utec.atlasrambackend.repository.FacilityRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
+import pe.edu.utec.atlasrambackend.repository.IsolateSpecifications;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
 
 @Service
@@ -40,9 +42,12 @@ public class IsolateService {
         return isolateRepository.findAll(pageable).map(isolateMapper::toResponse);
     }
 
+    /** Listado con filtros opcionales por establecimiento, microorganismo y tipo de muestra. */
     @Transactional(readOnly = true)
-    public Page<IsolateResponseDTO> findByFacility(Long facilityId, Pageable pageable) {
-        return isolateRepository.findByFacilityId(facilityId, pageable).map(isolateMapper::toResponse);
+    public Page<IsolateResponseDTO> search(Long facilityId, Long microorganismId, Specimen specimen, Pageable pageable) {
+        return isolateRepository
+                .findAll(IsolateSpecifications.withFilters(facilityId, microorganismId, specimen), pageable)
+                .map(isolateMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
