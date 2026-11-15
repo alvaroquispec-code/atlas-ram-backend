@@ -425,6 +425,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `POST` | `/auth/login` | público |
 | `GET` | `/districts`, `/microorganisms`, `/antibiotics`, `/facilities` | público |
 | `GET` | `/antibiogram` | público |
+| `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
 | `POST` | `/uploads` | técnico o administrador |
