@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.repository;
 
+import pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow;
 import pe.edu.utec.atlasrambackend.model.Isolate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,20 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
     List<Isolate> findByCollectionDateBetween(LocalDate from, LocalDate to);
 
     long countByDataUploadId(Long dataUploadId);
+
+    /** Establecimientos donde se atendieron los pacientes de un distrito, del que más recibe al que menos. */
+    @Query("""
+        select new pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow(f.id, f.name, count(i))
+        from Isolate i
+        join i.facility f
+        where i.aggregationDistrictId = :districtId
+          and i.collectionDate between :from and :to
+        group by f.id, f.name
+        order by count(i) desc
+        """)
+    List<ReferralFacilityRow> countByFacilityForDistrict(@Param("districtId") Long districtId,
+                                                         @Param("from") LocalDate from,
+                                                         @Param("to") LocalDate to);
 
     @Query("""
         select i from Isolate i

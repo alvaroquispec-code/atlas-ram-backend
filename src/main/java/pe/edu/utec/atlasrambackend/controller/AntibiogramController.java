@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.DistrictResistanceResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.ReferralAntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
 
 import java.time.LocalDate;
@@ -35,6 +36,18 @@ public class AntibiogramController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(
                 antibiogramService.calculate(microorganismId, districtId, from, to));
+    }
+
+    /**
+     * Antibiograma de los hospitales donde se atienden los pacientes de un distrito.
+     * Ejemplo: /antibiogram/referral?districtId=4&from=2024-09-01&to=2026-08-31
+     */
+    @GetMapping("/referral")
+    public ResponseEntity<ReferralAntibiogramResponseDTO> calculateReferral(
+            @RequestParam Long districtId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(antibiogramService.calculateReferral(districtId, from, to));
     }
 
     /**
