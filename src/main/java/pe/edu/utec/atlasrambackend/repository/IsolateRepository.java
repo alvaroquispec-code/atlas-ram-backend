@@ -12,10 +12,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpecificationExecutor<Isolate> {
 
     Page<Isolate> findByFacilityId(Long facilityId, Pageable pageable);
+
+    /** Establecimiento de un aislamiento, sin cargar la entidad completa. */
+    @Query("select i.facility.id from Isolate i where i.id = :id")
+    Optional<Long> findFacilityIdById(@Param("id") Long id);
 
     List<Isolate> findByCollectionDateBetween(LocalDate from, LocalDate to);
 
