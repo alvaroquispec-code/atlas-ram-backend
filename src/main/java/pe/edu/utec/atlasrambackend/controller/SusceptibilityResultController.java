@@ -3,6 +3,7 @@ package pe.edu.utec.atlasrambackend.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +27,9 @@ public class SusceptibilityResultController {
         this.resultService = resultService;
     }
 
+    /** Un técnico de laboratorio solo agrega resultados a aislamientos de sus establecimientos. */
     @PostMapping
+    @PreAuthorize("@facilityAccess.canAccessIsolate(authentication, #dto.isolateId())")
     public ResponseEntity<SusceptibilityResultResponseDTO> create(
             @Valid @RequestBody CreateSusceptibilityResultDTO dto,
             UriComponentsBuilder uriBuilder) {

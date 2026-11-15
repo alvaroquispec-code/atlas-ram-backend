@@ -310,7 +310,7 @@ Se definieron ocho excepciones personalizadas, y el manejador traduce cada una a
 |---|---|---|
 | `ResourceNotFoundException` | 404 | el recurso solicitado no existe |
 | `DuplicateResourceException` | 409 | se intenta crear un registro que ya existe |
-| `UploadNotRevertableException` | 409 | se intenta revertir una carga que no está completada |
+| `UploadNotRevertableException` | 409 | reservada para revertir cargas, que aún no tiene endpoint |
 | `InvalidCredentialsException` | 401 | correo o contraseña incorrectos |
 | `InvalidTokenException` | 401 | token ausente, expirado o mal firmado |
 | `BusinessRuleException` | 422 | la petición es válida pero viola una regla del dominio |
