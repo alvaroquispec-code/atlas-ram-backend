@@ -116,6 +116,10 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Antibiograma acumulado.** Una consulta agregada calcula el porcentaje de resistencia por combinación de microorganismo y antibiótico, con filtros opcionales. Las combinaciones con menos de 30 aislamientos se omiten, como recomienda CLSI M39, lo que además reduce el riesgo de reidentificar pacientes en grupos pequeños.
 
+**Hospitales de referencia.** Un distrito pequeño, por ejemplo sin hospital propio, rara vez reúne 30 resultados por combinación. En vez de mostrar un porcentaje poco confiable, `GET /antibiogram/referral` identifica los tres hospitales donde más se atienden los pacientes de ese distrito y devuelve el antibiograma de esos hospitales.
+
+**Búsqueda de aislamientos.** El listado acepta filtros opcionales y combinables (establecimiento, microorganismo y tipo de muestra), construidos con JPA Specifications, además de paginación y orden.
+
 **Alertas de resistencia.** Tras cada carga, el sistema revisa el antibiograma del establecimiento y notifica cuando una combinación supera el umbral configurado.
 
 **Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos y usuarios públicos tienen permisos distintos.
@@ -126,7 +130,7 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 |---|---|
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 3.5.6 (Web, Data JPA, Security, Validation, Mail) |
-| Persistencia | Hibernate 6.6, PostgreSQL 16 |
+| Persistencia | Hibernate 6.6, PostgreSQL 16, Flyway (migraciones) |
 | Autenticación | JWT con jjwt 0.12.6, BCrypt |
 | Utilidades | Lombok |
 | Infraestructura | Docker Compose (desarrollo), AWS EC2 y RDS (producción) |

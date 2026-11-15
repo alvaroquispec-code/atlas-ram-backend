@@ -76,9 +76,9 @@ No se aplica la regla de "primer aislamiento por paciente" de CLSI M39, porque n
 
 ## Cómo cargarlo
 
-1. Si ya tenían una base local, empezar de cero con `docker compose down -v`. Hibernate con `ddl-auto=update` no actualiza la restricción `check` del enum `UploadStatus` para aceptar `REVERTED`. Si antes usaban otro seed con `spring.sql.init.mode=always` y `src/main/resources/data.sql`, quiten ambos.
+1. Si ya tenían una base local de antes de Flyway, lo más simple es empezar de cero con `docker compose down -v`. Si antes usaban otro seed con `spring.sql.init.mode=always` y `src/main/resources/data.sql`, quiten ambos.
 2. Levantar la base con `docker compose up -d`.
-3. Arrancar la aplicación una vez para que Hibernate cree las tablas (`ddl-auto=update`) y detenerla.
+3. Arrancar la aplicación una vez para que Flyway cree las tablas (`V1__esquema_inicial.sql`) y detenerla.
 4. Copiar el archivo al contenedor y ejecutarlo desde la raíz del repositorio:
 
 ```bash
