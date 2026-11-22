@@ -6,7 +6,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Formula;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -53,8 +52,12 @@ public class Isolate {
     @JoinColumn(name = "district_id")
     private District district;
 
+    /**
+     * Distrito por el que se agrega: el de residencia o, si falta, el del establecimiento. Lo calcula un
+     * trigger de PostgreSQL (V8), por eso la aplicación nunca lo escribe.
+     */
     @Setter(AccessLevel.NONE)
-    @Formula("coalesce(district_id, (select f.district_id from facility f where f.id = facility_id))")
+    @Column(name = "aggregation_district_id", insertable = false, updatable = false)
     private Long aggregationDistrictId;
 
     @NotNull

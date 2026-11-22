@@ -28,13 +28,11 @@ public class AntibiogramQueries {
     private static final String RANKED_ISOLATES = """
             with eligible as (
                 select i.id, i.microorganism_id, i.patient_key, i.collection_date,
-                       coalesce(i.district_id, f.district_id) as district_id
+                       i.aggregation_district_id as district_id
                 from isolate i
-                join facility f on f.id = i.facility_id
                 where i.collection_date between :from and :to
                   and (cast(:microorganismId as bigint) is null or i.microorganism_id = :microorganismId)
-                  and (cast(:districtId as bigint) is null
-                       or coalesce(i.district_id, f.district_id) = :districtId)
+                  and (cast(:districtId as bigint) is null or i.aggregation_district_id = :districtId)
                   and (:allFacilities or i.facility_id in (:facilityIds))
                   and (cast(:specimen as varchar) is null or i.specimen_type = :specimen)
             ),
@@ -85,11 +83,9 @@ public class AntibiogramQueries {
                 select i.id, i.patient_key, i.collection_date,
                        cast(date_trunc(:unit, cast(i.collection_date as timestamp)) as date) as period
                 from isolate i
-                join facility f on f.id = i.facility_id
                 where i.collection_date between :from and :to
                   and i.microorganism_id = :microorganismId
-                  and (cast(:districtId as bigint) is null
-                       or coalesce(i.district_id, f.district_id) = :districtId)
+                  and (cast(:districtId as bigint) is null or i.aggregation_district_id = :districtId)
                   and (:allFacilities or i.facility_id in (:facilityIds))
             ),
             ranked as (
