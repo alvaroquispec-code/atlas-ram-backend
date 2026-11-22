@@ -36,6 +36,7 @@ public class AntibiogramQueries {
                   and (cast(:districtId as bigint) is null
                        or coalesce(i.district_id, f.district_id) = :districtId)
                   and (:allFacilities or i.facility_id in (:facilityIds))
+                  and (cast(:specimen as varchar) is null or i.specimen_type = :specimen)
             ),
             ranked as (
                 select e.*,
@@ -112,6 +113,22 @@ public class AntibiogramQueries {
     public record PeriodRow(LocalDate period, long tested, long susceptible, long resistant) {
     }
 
+    /** Perfil completo de cada primer aislamiento de un tipo de muestra: insumo del WISCA. */
+    private static final String PROFILES = RANKED_ISOLATES + """
+            select x.id as isolate_id, x.microorganism_id, m.code as microorganism_code, m.genus, m.species,
+                   a.code as antibiotic_code, r.interpretation
+            from ranked x
+            join microorganism m on m.id = x.microorganism_id
+            join susceptibility_result r on r.isolate_id = x.id
+            join antibiotic a on a.id = r.antibiotic_id
+            where x.rn = 1
+            order by x.id
+            """;
+
+    public record ProfileRow(Long isolateId, Long microorganismId, String microorganismCode,
+                             String microorganismName, String antibioticCode, String interpretation) {
+    }
+
     /** Una fila del antibiograma: un par microorganismo-antibiótico. */
     public record Row(Long microorganismId, String microorganismName, Long antibioticId, String antibioticName,
                       long tested, long susceptible, long intermediate, long resistant,
@@ -141,6 +158,20 @@ public class AntibiogramQueries {
                 rs.getLong("district_id"), rs.getLong("tested"), rs.getLong("susceptible"), rs.getLong("resistant")));
     }
 
+    /** Primeros aislamientos de un tipo de muestra con todos sus resultados. facilityIds null = todos. */
+    public List<ProfileRow> profiles(String specimen, Long districtId, Collection<Long> facilityIds,
+                                     LocalDate from, LocalDate to) {
+        MapSqlParameterSource params = params(null, districtId, facilityIds, from, to)
+                .addValue("specimen", specimen, java.sql.Types.VARCHAR);
+        return jdbc.query(PROFILES, params, (rs, i) -> {
+            String species = rs.getString("species");
+            return new ProfileRow(rs.getLong("isolate_id"), rs.getLong("microorganism_id"),
+                    rs.getString("microorganism_code"),
+                    species == null ? rs.getString("genus") : rs.getString("genus") + " " + species,
+                    rs.getString("antibiotic_code"), rs.getString("interpretation"));
+        });
+    }
+
     /** unit: "month" o "quarter" (argumento de date_trunc). facilityIds null = todos. */
     public List<PeriodRow> trend(Long microorganismId, Long antibioticId, Long districtId,
                                  Collection<Long> facilityIds, LocalDate from, LocalDate to, String unit) {
@@ -161,6 +192,7 @@ public class AntibiogramQueries {
                 .addValue("microorganismId", microorganismId, java.sql.Types.BIGINT)
                 .addValue("districtId", districtId, java.sql.Types.BIGINT)
                 .addValue("allFacilities", all)
+                .addValue("specimen", null, java.sql.Types.VARCHAR)
                 // "in ()" vacío es SQL inválido; con allFacilities = true esta lista no se evalúa.
                 .addValue("facilityIds", all || facilityIds.isEmpty() ? List.of(-1L) : facilityIds);
     }

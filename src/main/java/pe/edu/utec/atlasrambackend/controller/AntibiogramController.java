@@ -10,7 +10,10 @@ import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.DistrictResistanceResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.ReferralAntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.TrendResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.WiscaResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
+import pe.edu.utec.atlasrambackend.wisca.Syndrome;
+import pe.edu.utec.atlasrambackend.wisca.WiscaService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,9 +23,11 @@ import java.util.List;
 public class AntibiogramController {
 
     private final AntibiogramService antibiogramService;
+    private final WiscaService wiscaService;
 
-    public AntibiogramController(AntibiogramService antibiogramService) {
+    public AntibiogramController(AntibiogramService antibiogramService, WiscaService wiscaService) {
         this.antibiogramService = antibiogramService;
+        this.wiscaService = wiscaService;
     }
 
     /**
@@ -69,6 +74,23 @@ public class AntibiogramController {
             @RequestParam(defaultValue = "MONTH") AntibiogramService.TrendInterval interval) {
         return ResponseEntity.ok(antibiogramService.trend(
                 microorganismId, antibioticId, districtId, facilityId, from, to, interval));
+    }
+
+    /**
+     * WISCA bayesiano: probabilidad de que cada régimen empírico cubra la infección de un síndrome.
+     * Ejemplo: /antibiogram/wisca?syndrome=BACTEREMIA&from=2025-09-01&to=2026-08-31&regimens=MEM,TZP%2BAMK
+     * Sin regimens se comparan los candidatos habituales del síndrome. target: cobertura objetivo (90 %).
+     */
+    @GetMapping("/wisca")
+    public ResponseEntity<WiscaResponseDTO> wisca(
+            @RequestParam Syndrome syndrome,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) List<String> regimens,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long facilityId,
+            @RequestParam(defaultValue = "90") double target) {
+        return ResponseEntity.ok(wiscaService.calculate(syndrome, regimens, districtId, facilityId, from, to, target));
     }
 
     /**
