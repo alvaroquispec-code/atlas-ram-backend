@@ -85,4 +85,8 @@ public class ResistanceAlert {
 
     @Column(name = "closed_at")
     private Instant closedAt;
+
+    /** Por qué se cerró, cuando no la cerró una persona (por ejemplo, al revertir la carga que la originó). */
+    @Column(name = "close_reason", length = 500)
+    private String closeReason;
 }

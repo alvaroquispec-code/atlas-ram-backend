@@ -13,5 +13,8 @@ public record DataUploadResponseDTO(
         Integer failedRows,
         String errorLog,
         Instant startedAt,
-        Instant finishedAt
+        Instant finishedAt,
+        Instant revertedAt,
+        String revertedBy,
+        String revertReason
 ) {}

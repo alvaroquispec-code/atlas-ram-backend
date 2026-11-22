@@ -17,7 +17,10 @@ public class DataUploadMapper {
                 u.getFailedRows(),
                 u.getErrorLog(),
                 u.getStartedAt(),
-                u.getFinishedAt()
+                u.getFinishedAt(),
+                u.getRevertedAt(),
+                u.getRevertedBy() == null ? null : u.getRevertedBy().getFullName(),
+                u.getRevertReason()
         );
     }
 }

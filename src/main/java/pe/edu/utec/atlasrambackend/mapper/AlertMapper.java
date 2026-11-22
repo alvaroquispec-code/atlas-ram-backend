@@ -28,7 +28,9 @@ public class AlertMapper {
                 percentage(a.getBaselineResistant(), a.getBaselineTested()),
                 a.getPValue(),
                 a.getCreatedAt(),
-                a.getUpdatedAt());
+                a.getUpdatedAt(),
+                a.getClosedAt(),
+                a.getCloseReason());
     }
 
     private static double percentage(int part, int total) {

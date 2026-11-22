@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import pe.edu.utec.atlasrambackend.repository.DataUploadRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
@@ -23,13 +24,15 @@ class FacilityAccessEvaluatorTest {
 
     private UserRepository userRepository;
     private IsolateRepository isolateRepository;
+    private DataUploadRepository uploadRepository;
     private FacilityAccessEvaluator evaluator;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
         isolateRepository = mock(IsolateRepository.class);
-        evaluator = new FacilityAccessEvaluator(userRepository, isolateRepository);
+        uploadRepository = mock(DataUploadRepository.class);
+        evaluator = new FacilityAccessEvaluator(userRepository, isolateRepository, uploadRepository);
     }
 
     private static Authentication as(String email, String role) {
@@ -90,5 +93,22 @@ class FacilityAccessEvaluatorTest {
 
         assertThat(evaluator.visibleFacilityIds(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN")))
                 .contains(Set.of());
+    }
+
+    @Test
+    void tecnicoVeLasCargasDeSuEstablecimiento() {
+        when(uploadRepository.findFacilityIdById(412L)).thenReturn(Optional.of(1L));
+        when(userRepository.isAssignedToFacility(LAB_EMAIL, 1L)).thenReturn(true);
+
+        assertThat(evaluator.canAccessUpload(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN"), 412L)).isTrue();
+    }
+
+    @Test
+    void tecnicoNoVeLasCargasDeOtroEstablecimiento() {
+        // Sin este control, cambiando el número en /uploads/{id} se leía el registro de errores de otro hospital.
+        when(uploadRepository.findFacilityIdById(500L)).thenReturn(Optional.of(6L));
+        when(userRepository.isAssignedToFacility(LAB_EMAIL, 6L)).thenReturn(false);
+
+        assertThat(evaluator.canAccessUpload(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN"), 500L)).isFalse();
     }
 }

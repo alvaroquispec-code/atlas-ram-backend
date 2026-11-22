@@ -136,4 +136,45 @@ class AlertServiceTest {
         assertThatThrownBy(() -> service.updateStatus(1L, AlertStatus.OPEN))
                 .isInstanceOf(BusinessRuleException.class);
     }
+
+    /** Alerta activa de carbapenémicos en K. pneumoniae, con la ventana que termina en AS_OF. */
+    private ResistanceAlert activeCarbapenemAlert() {
+        Microorganism kpn = new Microorganism();
+        kpn.setId(KPN);
+        ResistanceAlert alert = new ResistanceAlert();
+        alert.setId(33L);
+        alert.setFacility(hnhu);
+        alert.setMicroorganism(kpn);
+        alert.setAntibioticClass("Carbapenémico");
+        alert.setStatus(AlertStatus.OPEN);
+        alert.setWindowEnd(AS_OF);
+        alert.setResistantCount(15);
+        when(alertRepository.findActiveByFacility(6L)).thenReturn(List.of(alert));
+        return alert;
+    }
+
+    @Test
+    void alRevertirLaCargaQueCausoLaAlertaSeRetiraConMotivo() {
+        // Sin los datos revertidos, la ventana queda vacía: ya no hay señal.
+        ResistanceAlert alert = activeCarbapenemAlert();
+
+        List<ResistanceAlert> withdrawn = service.reassessAfterRevert(hnhu, 412L);
+
+        assertThat(withdrawn).containsExactly(alert);
+        assertThat(alert.getStatus()).isEqualTo(AlertStatus.CLOSED);
+        assertThat(alert.getClosedAt()).isNotNull();
+        assertThat(alert.getCloseReason()).contains("412");
+    }
+
+    @Test
+    void siElBroteSigueSinLosDatosRevertidosLaAlertaSeQuedaConCifrasCorregidas() {
+        givenCarbapenemOutbreak();
+        ResistanceAlert alert = activeCarbapenemAlert();
+
+        List<ResistanceAlert> withdrawn = service.reassessAfterRevert(hnhu, 412L);
+
+        assertThat(withdrawn).isEmpty();
+        assertThat(alert.getStatus()).isEqualTo(AlertStatus.OPEN);
+        assertThat(alert.getResistantCount()).isEqualTo(10);
+    }
 }

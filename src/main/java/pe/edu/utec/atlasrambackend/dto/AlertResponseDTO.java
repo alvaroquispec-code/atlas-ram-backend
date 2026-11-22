@@ -24,5 +24,7 @@ public record AlertResponseDTO(
         double baselinePercentage,
         double pValue,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Instant closedAt,
+        String closeReason
 ) {}

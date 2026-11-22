@@ -26,6 +26,10 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
 
     long countByDataUploadId(Long dataUploadId);
 
+    @Modifying(flushAutomatically = true)
+    @Query("delete from Isolate i where i.dataUpload.id = :uploadId")
+    int deleteByUploadId(@Param("uploadId") Long uploadId);
+
     /** Establecimientos donde se atendieron los pacientes de un distrito, del que más recibe al que menos. */
     @Query("""
         select new pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow(f.id, f.name, count(i))

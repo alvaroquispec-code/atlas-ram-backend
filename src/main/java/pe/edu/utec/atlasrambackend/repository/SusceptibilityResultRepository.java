@@ -14,7 +14,14 @@ import java.util.List;
 
 public interface SusceptibilityResultRepository extends JpaRepository<SusceptibilityResult, Long> {
 
-    List<SusceptibilityResult> findByIsolateId(Long isolateId);
+    /** Ordenados por antibiótico: sin ORDER BY, PostgreSQL los devuelve en cualquier orden. */
+    List<SusceptibilityResult> findByIsolateIdOrderByAntibioticNameAsc(Long isolateId);
+
+    /** Borrado masivo de los resultados de una carga (se ejecuta antes que el de sus aislamientos). */
+    @Modifying(flushAutomatically = true)
+    @Query("delete from SusceptibilityResult r where r.isolate.id in "
+            + "(select i.id from Isolate i where i.dataUpload.id = :uploadId)")
+    int deleteByUploadId(@Param("uploadId") Long uploadId);
 
     boolean existsByIsolateIdAndAntibioticId(Long isolateId, Long antibioticId);
 

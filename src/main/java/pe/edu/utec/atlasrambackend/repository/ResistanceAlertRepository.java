@@ -26,6 +26,13 @@ public interface ResistanceAlertRepository extends JpaRepository<ResistanceAlert
 
     @Query("""
             select a from ResistanceAlert a
+            where a.facility.id = :facilityId
+              and a.status <> pe.edu.utec.atlasrambackend.model.AlertStatus.CLOSED
+            """)
+    List<ResistanceAlert> findActiveByFacility(@Param("facilityId") Long facilityId);
+
+    @Query("""
+            select a from ResistanceAlert a
             join fetch a.facility join fetch a.microorganism join fetch a.antibiotic
             where (:status is null or a.status = :status)
             order by a.createdAt desc

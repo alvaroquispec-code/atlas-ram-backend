@@ -45,7 +45,7 @@ public class SusceptibilityResultService {
         if (!isolateRepository.existsById(isolateId)) {
             throw new ResourceNotFoundException("Aislamiento", isolateId);
         }
-        return resultRepository.findByIsolateId(isolateId).stream()
+        return resultRepository.findByIsolateIdOrderByAntibioticNameAsc(isolateId).stream()
                 .map(resultMapper::toResponse)
                 .toList();
     }

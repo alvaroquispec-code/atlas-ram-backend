@@ -117,35 +117,8 @@ public class AlertService {
 
     /** Evalúa todas las combinaciones del establecimiento en una fecha y devuelve las alertas nuevas. */
     List<ResistanceAlert> evaluate(Facility facility, LocalDate asOf) {
-        LocalDate windowStart = asOf.minusDays(windowDays - 1L);
-        LocalDate baselineEnd = windowStart.minusDays(1);
-        LocalDate baselineStart = baselineEnd.minusDays(baselineDays - 1L);
-
-        Map<String, ResistanceCountRow> baseline = resultRepository
-                .countByCombination(facility.getId(), baselineStart, baselineEnd).stream()
-                .collect(Collectors.toMap(AlertService::key, Function.identity()));
-        List<ResistanceCountRow> window = resultRepository.countByCombination(facility.getId(), windowStart, asOf);
-
-        Map<Long, Antibiotic> antibiotics = antibioticRepository.findAll().stream()
-                .collect(Collectors.toMap(Antibiotic::getId, Function.identity()));
-
-        // Una clase de antibiótico puede dar señal en varios fármacos a la vez (una carbapenemasa hace
-        // resistentes a imipenem, meropenem y ertapenem). Se agrupan y se conserva la señal más fuerte.
-        Map<String, Candidate> strongest = new LinkedHashMap<>();
-        for (ResistanceCountRow row : window) {
-            ResistanceCountRow base = baseline.get(key(row));
-            if (base == null) {
-                continue;
-            }
-            detector.evaluate(row.tested(), row.resistant(), base.tested(), base.resistant())
-                    .ifPresent(signal -> {
-                        Antibiotic antibiotic = antibiotics.get(row.antibioticId());
-                        String antibioticClass = classOf(antibiotic);
-                        Candidate candidate = new Candidate(row, base, antibiotic, antibioticClass, signal);
-                        strongest.merge(row.microorganismId() + "|" + antibioticClass, candidate,
-                                (a, b) -> a.signal().pValue() <= b.signal().pValue() ? a : b);
-                    });
-        }
+        LocalDate windowStart = windowStartFor(asOf);
+        Map<String, Candidate> strongest = detectSignals(facility.getId(), asOf);
 
         List<ResistanceAlert> created = new ArrayList<>();
         for (Candidate c : strongest.values()) {
@@ -174,6 +147,76 @@ public class AlertService {
                     c.row().tested()));
         }
         return created;
+    }
+
+    /**
+     * Revisa las alertas activas del establecimiento después de revertir una carga. Cada una se vuelve a
+     * calcular en su propia ventana, ya sin los datos borrados: si la señal desaparece, la alerta se
+     * cierra con el motivo; si sigue, se corrigen sus cifras. Al final se evalúa la fecha más reciente,
+     * por si quitar datos erróneos de la línea base deja ver un brote real.
+     */
+    @Transactional
+    public List<ResistanceAlert> reassessAfterRevert(Facility facility, Long uploadId) {
+        List<ResistanceAlert> withdrawn = new ArrayList<>();
+        for (ResistanceAlert alert : alertRepository.findActiveByFacility(facility.getId())) {
+            LocalDate windowEnd = alert.getWindowEnd();
+            Candidate current = detectSignals(facility.getId(), windowEnd)
+                    .get(alert.getMicroorganism().getId() + "|" + alert.getAntibioticClass());
+            if (current == null) {
+                Instant now = Instant.now();
+                alert.setStatus(AlertStatus.CLOSED);
+                alert.setClosedAt(now);
+                alert.setUpdatedAt(now);
+                alert.setCloseReason("Retirada automáticamente: se revirtió la carga " + uploadId
+                        + " y sin esos datos no hay señal");
+                withdrawn.add(alert);
+            } else {
+                apply(alert, current, windowStartFor(windowEnd), windowEnd);
+            }
+        }
+        checkAfterUpload(facility);
+        return withdrawn;
+    }
+
+    /**
+     * Señales de la ventana que termina en asOf frente a la línea base anterior, agrupadas por
+     * microorganismo y clase de antibiótico ("idMicroorganismo|clase").
+     */
+    private Map<String, Candidate> detectSignals(Long facilityId, LocalDate asOf) {
+        LocalDate windowStart = windowStartFor(asOf);
+        LocalDate baselineEnd = windowStart.minusDays(1);
+        LocalDate baselineStart = baselineEnd.minusDays(baselineDays - 1L);
+
+        Map<String, ResistanceCountRow> baseline = resultRepository
+                .countByCombination(facilityId, baselineStart, baselineEnd).stream()
+                .collect(Collectors.toMap(AlertService::key, Function.identity()));
+        List<ResistanceCountRow> window = resultRepository.countByCombination(facilityId, windowStart, asOf);
+
+        Map<Long, Antibiotic> antibiotics = antibioticRepository.findAll().stream()
+                .collect(Collectors.toMap(Antibiotic::getId, Function.identity()));
+
+        // Una clase de antibiótico puede dar señal en varios fármacos a la vez (una carbapenemasa hace
+        // resistentes a imipenem, meropenem y ertapenem). Se agrupan y se conserva la señal más fuerte.
+        Map<String, Candidate> strongest = new LinkedHashMap<>();
+        for (ResistanceCountRow row : window) {
+            ResistanceCountRow base = baseline.get(key(row));
+            if (base == null) {
+                continue;
+            }
+            detector.evaluate(row.tested(), row.resistant(), base.tested(), base.resistant())
+                    .ifPresent(signal -> {
+                        Antibiotic antibiotic = antibiotics.get(row.antibioticId());
+                        String antibioticClass = classOf(antibiotic);
+                        Candidate candidate = new Candidate(row, base, antibiotic, antibioticClass, signal);
+                        strongest.merge(row.microorganismId() + "|" + antibioticClass, candidate,
+                                (a, b) -> a.signal().pValue() <= b.signal().pValue() ? a : b);
+                    });
+        }
+        return strongest;
+    }
+
+    private LocalDate windowStartFor(LocalDate asOf) {
+        return asOf.minusDays(windowDays - 1L);
     }
 
     @Transactional(readOnly = true)
