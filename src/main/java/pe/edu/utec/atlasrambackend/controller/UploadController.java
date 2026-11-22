@@ -22,6 +22,7 @@ import pe.edu.utec.atlasrambackend.model.User;
 import pe.edu.utec.atlasrambackend.repository.DataUploadRepository;
 import pe.edu.utec.atlasrambackend.repository.FacilityRepository;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
+import pe.edu.utec.atlasrambackend.service.CsvParser;
 import pe.edu.utec.atlasrambackend.service.FileFingerprint;
 import pe.edu.utec.atlasrambackend.service.UploadService;
 
@@ -44,19 +45,22 @@ public class UploadController {
     private final FacilityRepository facilityRepository;
     private final DataUploadMapper mapper;
     private final FacilityAccessEvaluator facilityAccess;
+    private final CsvParser csvParser;
 
     public UploadController(UploadService uploadService,
                             DataUploadRepository uploadRepository,
                             UserRepository userRepository,
                             FacilityRepository facilityRepository,
                             DataUploadMapper mapper,
-                            FacilityAccessEvaluator facilityAccess) {
+                            FacilityAccessEvaluator facilityAccess,
+                            CsvParser csvParser) {
         this.uploadService = uploadService;
         this.uploadRepository = uploadRepository;
         this.userRepository = userRepository;
         this.facilityRepository = facilityRepository;
         this.mapper = mapper;
         this.facilityAccess = facilityAccess;
+        this.csvParser = csvParser;
     }
 
     @PostMapping
@@ -86,6 +90,10 @@ public class UploadController {
                             + "administrador puede revertirla y luego se vuelve a subir.");
                 });
 
+        // La cabecera y el formato se validan aquí: un archivo ilegible responde 400 al instante y no deja
+        // una carga FAILED. Los errores de cada fila se informan después, en el registro de la carga.
+        CsvParser.Result parsed = csvParser.parse(content);
+
         DataUpload upload = new DataUpload();
         upload.setFileName(file.getOriginalFilename());
         upload.setUploadedBy(user);
@@ -94,7 +102,7 @@ public class UploadController {
 
         DataUpload saved = uploadRepository.save(upload);
 
-        uploadService.process(saved.getId(), content);
+        uploadService.process(saved.getId(), parsed);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(mapper.toResponse(saved));

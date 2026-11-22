@@ -26,6 +26,17 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
 
     long countByDataUploadId(Long dataUploadId);
 
+    /** Carga en la que ya se registró ese aislamiento del laboratorio, si existe. */
+    @Query("""
+        select i.dataUpload.id from Isolate i
+        where i.facility.id = :facilityId
+          and i.labIsolateId = :labIsolateId
+          and i.microorganism.id = :microorganismId
+        """)
+    List<Long> findUploadIdsOfLabIsolate(@Param("facilityId") Long facilityId,
+                                         @Param("labIsolateId") String labIsolateId,
+                                         @Param("microorganismId") Long microorganismId);
+
     @Modifying(flushAutomatically = true)
     @Query("delete from Isolate i where i.dataUpload.id = :uploadId")
     int deleteByUploadId(@Param("uploadId") Long uploadId);

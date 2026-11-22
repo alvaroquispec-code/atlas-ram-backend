@@ -66,6 +66,18 @@ public class Isolate {
     @JoinColumn(name = "data_upload_id")
     private DataUpload dataUpload;
 
+    /**
+     * Seudónimo del paciente (HMAC-SHA256 del identificador que envió el laboratorio). Nunca se guarda
+     * el identificador original. Null si el laboratorio no lo envió: entonces cada aislamiento cuenta
+     * como un paciente distinto.
+     */
+    @Column(name = "patient_key", length = 64)
+    private String patientKey;
+
+    /** Código del aislamiento en el laboratorio (número de muestra o de accesión), si lo envió. */
+    @Column(name = "lab_isolate_id", length = 50)
+    private String labIsolateId;
+
     @OneToMany(
             mappedBy = "isolate",
             cascade = CascadeType.ALL,

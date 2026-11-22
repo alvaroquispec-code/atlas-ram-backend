@@ -14,5 +14,7 @@ public record IsolateResponseDTO(
         String districtUbigeo,
         String districtName,
         String microorganismName,
-        Long dataUploadId
+        Long dataUploadId,
+        String labIsolateId,
+        boolean patientIdentified
 ) {}

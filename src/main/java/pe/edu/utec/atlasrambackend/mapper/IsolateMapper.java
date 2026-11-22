@@ -27,7 +27,9 @@ public class IsolateMapper {
                 d == null ? null : d.getUbigeo(),
                 d == null ? null : d.getName(),
                 organismName,
-                uploadId
+                uploadId,
+                i.getLabIsolateId(),
+                i.getPatientKey() != null
         );
     }
 }

@@ -401,6 +401,7 @@ cd atlas-ram-backend
 cp .env.example .env          # completar contraseñas y JWT_SECRET
 docker compose up -d          # PostgreSQL en el puerto 5433
 export JWT_SECRET=...         # Spring no lee el .env: la variable debe estar en el entorno
+export PATIENT_KEY_SECRET=... # openssl rand -base64 32
 ./mvnw spring-boot:run        # Flyway crea las tablas (db/migration)
 docker cp db/seed/data.sql atlasram-db:/tmp/data.sql
 docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
@@ -415,9 +416,30 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
 | `SPRING_DATASOURCE_PASSWORD` | contraseña de la base |
 | `JWT_SECRET` | clave de firma en base64, mínimo 64 bytes |
 | `JWT_EXPIRATION_MS` | vigencia del token de acceso |
+| `PATIENT_KEY_SECRET` | secreto en base64 (mínimo 32 bytes) para seudonimizar el identificador de paciente con HMAC-SHA256 |
 | `JPA_DDL_AUTO` | modo de Hibernate sobre el esquema; por defecto `validate` (el esquema lo maneja Flyway) |
 | `MAIL_ENABLED` | activa el envío real de correos |
 | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` | servidor SMTP |
+
+### Formato del CSV de carga
+
+UTF-8, separado por comas o por punto y coma (Excel en español), con cabecera. Las columnas se reconocen
+por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fila = un antibiótico de un aislamiento.
+
+| Columna | Obligatoria | Ejemplo | Notas |
+|---|---|---|---|
+| `fecha_toma` | sí | `2026-08-20` o `20/08/2026` | no puede ser futura |
+| `tipo_muestra` | sí | `URINE`, `ORINA`, `SANGRE`, `LCR` | |
+| `codigo_microorganismo` | sí | `eco` | códigos WHONET |
+| `codigo_antibiotico` | sí | `MEM` | códigos WHONET |
+| `cim` | * | `<=0.25`, `>=16`, `0,5`, `4/76` | con calificador; coma decimal aceptada |
+| `interpretacion_laboratorio` | * | `S`, `I`, `R`, `RESISTENTE` | se usa si la CIM no basta para interpretar |
+| `id_paciente` | recomendada | historia clínica | se guarda solo un seudónimo HMAC; permite la regla del primer aislamiento (CLSI M39) |
+| `id_aislamiento` | recomendada | número de muestra | evita mezclar pacientes y registrar dos veces el mismo aislamiento |
+| `codigo_establecimiento` | no | `HNCH` | si viene, debe ser el de la carga |
+| `edad`, `sexo`, `ubigeo_residencia` | no | `47`, `F`, `150135` | |
+
+\* Cada fila necesita una CIM interpretable o la interpretación del laboratorio.
 
 ### Endpoints principales
 
