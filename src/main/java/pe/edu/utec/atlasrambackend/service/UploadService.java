@@ -9,11 +9,12 @@ import pe.edu.utec.atlasrambackend.dto.CsvRowDTO;
 import pe.edu.utec.atlasrambackend.event.EventPublisher;
 import pe.edu.utec.atlasrambackend.event.UploadCompletedEvent;
 import pe.edu.utec.atlasrambackend.event.UploadFailedEvent;
+import pe.edu.utec.atlasrambackend.interpretation.MicParser;
+import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.model.*;
 import pe.edu.utec.atlasrambackend.repository.*;
 
 import java.io.ByteArrayInputStream;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -174,8 +175,11 @@ public class UploadService {
         SusceptibilityResult result = new SusceptibilityResult();
         result.setAntibiotic(antibiotic);
 
-        if (!row.micValue().isBlank()) {
-            result.setMicValue(new BigDecimal(row.micValue()));
+        // "<=0.25", ">=16", "0,5"... tal como los exportan los equipos y WHONET.
+        ParsedMic mic = MicParser.parse(row.micValue()).orElse(null);
+        if (mic != null) {
+            result.setMicValue(mic.value());
+            result.setMicQualifier(mic.qualifier());
         }
 
         Interpretation reported = null;
@@ -184,19 +188,16 @@ public class UploadService {
             result.setReportedInterpretation(reported);
         }
 
-        Interpretation computed = interpretationService.interpret(
-                        result.getMicValue(), isolate.getMicroorganism(),
-                        antibiotic, "CLSI", "2024")
-                .orElse(reported);
+        InterpretationService.Resolution resolution = interpretationService
+                .resolve(mic, reported, isolate.getMicroorganism(), antibiotic)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se pudo interpretar " + row.antibioticCode()
+                                + ": sin punto de corte o CIM no concluyente, y sin interpretación del laboratorio"));
 
-        if (computed == null) {
-            throw new IllegalArgumentException(
-                    "No hay CIM ni interpretación del laboratorio para " + row.antibioticCode());
-        }
-
-        result.setInterpretation(computed);
-        result.setBreakpointStandard("CLSI");
-        result.setBreakpointVersion("2024");
+        result.setInterpretation(resolution.interpretation());
+        result.setInterpretationSource(resolution.source());
+        result.setBreakpointStandard(resolution.breakpointStandard());
+        result.setBreakpointVersion(resolution.breakpointVersion());
 
         isolate.addResult(result);
     }
