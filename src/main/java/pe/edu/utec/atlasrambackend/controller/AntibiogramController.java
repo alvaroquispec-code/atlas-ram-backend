@@ -25,17 +25,19 @@ public class AntibiogramController {
     }
 
     /**
-     * Consulta pública de resistencia acumulada.
+     * Consulta pública de resistencia acumulada (CLSI M39: primer aislamiento por paciente).
      * Ejemplo: /antibiogram?microorganismId=1&from=2025-01-01&to=2025-12-31
+     * Con includeInsufficient=true también devuelve las combinaciones con menos de 30 aislamientos.
      */
     @GetMapping
     public ResponseEntity<List<AntibiogramResponseDTO>> calculate(
             @RequestParam(required = false) Long microorganismId,
             @RequestParam(required = false) Long districtId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "false") boolean includeInsufficient) {
         return ResponseEntity.ok(
-                antibiogramService.calculate(microorganismId, districtId, from, to));
+                antibiogramService.calculate(microorganismId, districtId, from, to, includeInsufficient));
     }
 
     /**

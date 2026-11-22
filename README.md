@@ -114,13 +114,13 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Interpretación trazable.** Cada resultado conserva la CIM cruda, la interpretación que reportó el laboratorio y la que calcula el sistema, junto con el estándar y la versión del punto de corte aplicado. Esto permite reinterpretar el histórico cuando cambie la norma.
 
-**Antibiograma acumulado.** Una consulta agregada calcula el porcentaje de resistencia por combinación de microorganismo y antibiótico, con filtros opcionales. Las combinaciones con menos de 30 aislamientos se omiten, como recomienda CLSI M39, lo que además reduce el riesgo de reidentificar pacientes en grupos pequeños.
+**Antibiograma acumulado.** Sigue la guía CLSI M39: cuenta solo el **primer aislamiento de cada paciente y especie** en el período (los cultivos repetidos de un mismo paciente suelen ser los más resistentes e inflarían el porcentaje), informa el porcentaje de sensibles y de resistentes con su **intervalo de confianza de Wilson al 95 %**, y omite las combinaciones con menos de 30 aislamientos, lo que además reduce el riesgo de reidentificar pacientes en grupos pequeños. Cada fila dice cuántos aislamientos repetidos se excluyeron y qué porcentaje tenía paciente identificado.
 
 **Hospitales de referencia.** Un distrito pequeño, por ejemplo sin hospital propio, rara vez reúne 30 resultados por combinación. En vez de mostrar un porcentaje poco confiable, `GET /antibiogram/referral` identifica los tres hospitales donde más se atienden los pacientes de ese distrito y devuelve el antibiograma de esos hospitales.
 
 **Búsqueda de aislamientos.** El listado acepta filtros opcionales y combinables (establecimiento, microorganismo y tipo de muestra), construidos con JPA Specifications, además de paginación y orden.
 
-**Alertas de resistencia.** Tras cada carga, el sistema revisa el antibiograma del establecimiento y notifica cuando una combinación supera el umbral configurado.
+**Alertas de brote.** Tras cada carga, el sistema compara las últimas 4 semanas de cada establecimiento con su propia línea base de 12 meses mediante una prueba binomial exacta, agrupa la señal por clase de antibiótico y mantiene una sola alerta activa por combinación; si la carga que la originó se revierte, la alerta se retira con el motivo.
 
 **Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos y usuarios públicos tienen permisos distintos.
 
