@@ -74,6 +74,44 @@ public class AntibiogramQueries {
             group by x.district_id
             """;
 
+    /**
+     * Serie temporal de un par microorganismo-antibiótico. La regla del primer aislamiento se aplica
+     * dentro de cada periodo (mes o trimestre): el mismo paciente puede aportar un aislamiento en enero
+     * y otro en marzo, pero no dos en enero.
+     */
+    private static final String TREND = """
+            with eligible as (
+                select i.id, i.patient_key, i.collection_date,
+                       cast(date_trunc(:unit, cast(i.collection_date as timestamp)) as date) as period
+                from isolate i
+                join facility f on f.id = i.facility_id
+                where i.collection_date between :from and :to
+                  and i.microorganism_id = :microorganismId
+                  and (cast(:districtId as bigint) is null
+                       or coalesce(i.district_id, f.district_id) = :districtId)
+                  and (:allFacilities or i.facility_id in (:facilityIds))
+            ),
+            ranked as (
+                select e.*,
+                       row_number() over (
+                           partition by coalesce(e.patient_key, 'aislamiento:' || e.id), e.period
+                           order by e.collection_date, e.id) as rn
+                from eligible e
+            )
+            select x.period,
+                   count(*)                                                  as tested,
+                   count(*) filter (where r.interpretation = 'SUSCEPTIBLE')  as susceptible,
+                   count(*) filter (where r.interpretation = 'RESISTANT')    as resistant
+            from ranked x
+            join susceptibility_result r on r.isolate_id = x.id and r.antibiotic_id = :antibioticId
+            where x.rn = 1
+            group by x.period
+            order by x.period
+            """;
+
+    public record PeriodRow(LocalDate period, long tested, long susceptible, long resistant) {
+    }
+
     /** Una fila del antibiograma: un par microorganismo-antibiótico. */
     public record Row(Long microorganismId, String microorganismName, Long antibioticId, String antibioticName,
                       long tested, long susceptible, long intermediate, long resistant,
@@ -101,6 +139,17 @@ public class AntibiogramQueries {
                 .addValue("antibioticId", antibioticId);
         return jdbc.query(BY_DISTRICT, params, (rs, i) -> new DistrictRow(
                 rs.getLong("district_id"), rs.getLong("tested"), rs.getLong("susceptible"), rs.getLong("resistant")));
+    }
+
+    /** unit: "month" o "quarter" (argumento de date_trunc). facilityIds null = todos. */
+    public List<PeriodRow> trend(Long microorganismId, Long antibioticId, Long districtId,
+                                 Collection<Long> facilityIds, LocalDate from, LocalDate to, String unit) {
+        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to)
+                .addValue("antibioticId", antibioticId)
+                .addValue("unit", unit);
+        return jdbc.query(TREND, params, (rs, i) -> new PeriodRow(
+                rs.getObject("period", LocalDate.class), rs.getLong("tested"),
+                rs.getLong("susceptible"), rs.getLong("resistant")));
     }
 
     private static MapSqlParameterSource params(Long microorganismId, Long districtId, Collection<Long> facilityIds,

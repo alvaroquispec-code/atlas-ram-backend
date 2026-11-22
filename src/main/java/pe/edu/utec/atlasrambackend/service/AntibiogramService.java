@@ -8,6 +8,7 @@ import pe.edu.utec.atlasrambackend.dto.DistrictResistanceResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.ReferralAntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.ReferralFacilityDTO;
 import pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow;
+import pe.edu.utec.atlasrambackend.dto.TrendResponseDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
 import pe.edu.utec.atlasrambackend.model.District;
@@ -16,6 +17,7 @@ import pe.edu.utec.atlasrambackend.repository.AntibioticRepository;
 import pe.edu.utec.atlasrambackend.repository.DistrictRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
+import pe.edu.utec.atlasrambackend.stats.CochranArmitage;
 import pe.edu.utec.atlasrambackend.stats.Proportions;
 
 import java.time.LocalDate;
@@ -138,6 +140,85 @@ public class AntibiogramService {
                         top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to), false);
 
         return new ReferralAntibiogramResponseDTO(district.getName(), facilities, entries);
+    }
+
+    /** Agrupación temporal de la tendencia. */
+    public enum TrendInterval {
+        MONTH("month", 12), QUARTER("quarter", 4);
+
+        final String sqlUnit;
+        final int perYear;
+
+        TrendInterval(String sqlUnit, int perYear) {
+            this.sqlUnit = sqlUnit;
+            this.perYear = perYear;
+        }
+
+        LocalDate start(LocalDate date) {
+            LocalDate month = date.withDayOfMonth(1);
+            return this == MONTH ? month : month.withMonth(((date.getMonthValue() - 1) / 3) * 3 + 1);
+        }
+
+        LocalDate next(LocalDate start) {
+            return this == MONTH ? start.plusMonths(1) : start.plusMonths(3);
+        }
+    }
+
+    static final int MAX_TREND_YEARS = 10;
+
+    /**
+     * Resistencia de un par microorganismo-antibiótico periodo a periodo, con la prueba de tendencia de
+     * Cochran-Armitage. Los periodos sin aislamientos aparecen con 0 probados para que el eje del tiempo
+     * no tenga huecos. facilityId es opcional (un hospital); districtId también.
+     */
+    @Transactional(readOnly = true)
+    public TrendResponseDTO trend(Long microorganismId, Long antibioticId, Long districtId, Long facilityId,
+                                  LocalDate from, LocalDate to, TrendInterval interval) {
+        validateRange(from, to);
+        if (from.plusYears(MAX_TREND_YEARS).isBefore(to)) {
+            throw new BusinessRuleException("El periodo de la tendencia no puede superar " + MAX_TREND_YEARS + " años");
+        }
+        var microorganism = microorganismRepository.findById(microorganismId)
+                .orElseThrow(() -> new ResourceNotFoundException("Microorganismo", microorganismId));
+        var antibiotic = antibioticRepository.findById(antibioticId)
+                .orElseThrow(() -> new ResourceNotFoundException("Antibiótico", antibioticId));
+
+        Map<LocalDate, AntibiogramQueries.PeriodRow> rows = antibiogramQueries
+                .trend(microorganismId, antibioticId, districtId, facilityId == null ? null : List.of(facilityId),
+                        from, to, interval.sqlUnit).stream()
+                .collect(Collectors.toMap(AntibiogramQueries.PeriodRow::period, Function.identity()));
+
+        List<TrendResponseDTO.Point> points = new java.util.ArrayList<>();
+        List<CochranArmitage.Point> testPoints = new java.util.ArrayList<>();
+        int index = 0;
+        for (LocalDate start = interval.start(from); !start.isAfter(to); start = interval.next(start), index++) {
+            AntibiogramQueries.PeriodRow row = rows.get(start);
+            long tested = row == null ? 0 : row.tested();
+            long resistant = row == null ? 0 : row.resistant();
+            long susceptible = row == null ? 0 : row.susceptible();
+            Proportions.Interval ci = Proportions.wilson(resistant, tested);
+            points.add(new TrendResponseDTO.Point(start, tested, resistant,
+                    tested == 0 ? null : Proportions.percentage(resistant, tested),
+                    tested == 0 ? null : ci.low(),
+                    tested == 0 ? null : ci.high(),
+                    tested == 0 ? null : Proportions.percentage(susceptible, tested)));
+            testPoints.add(new CochranArmitage.Point(index, resistant, tested));
+        }
+
+        String species = microorganism.getSpecies();
+        return new TrendResponseDTO(microorganismId,
+                species == null ? microorganism.getGenus() : microorganism.getGenus() + " " + species,
+                antibioticId, antibiotic.getName(), interval.name(), points,
+                toTrend(CochranArmitage.test(testPoints), interval));
+    }
+
+    static TrendResponseDTO.Trend toTrend(CochranArmitage.Result r, TrendInterval interval) {
+        if (r == null) {
+            return null;
+        }
+        String direction = r.pValue() >= 0.05 ? "NO_SIGNIFICANT_TREND" : r.z() > 0 ? "INCREASING" : "DECREASING";
+        return new TrendResponseDTO.Trend(r.z(), r.pValue(), r.slope() * 100 * interval.perYear, direction,
+                r.periods(), r.totalTrials());
     }
 
     private DistrictResistanceResponseDTO toResponse(District district, AntibiogramQueries.DistrictRow row) {

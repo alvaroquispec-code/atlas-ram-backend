@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.DistrictResistanceResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.ReferralAntibiogramResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.TrendResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
 
 import java.time.LocalDate;
@@ -50,6 +51,24 @@ public class AntibiogramController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(antibiogramService.calculateReferral(districtId, from, to));
+    }
+
+    /**
+     * Evolución de la resistencia de un par microorganismo-antibiótico, con prueba de tendencia.
+     * Ejemplo: /antibiogram/trend?microorganismId=2&antibioticId=11&facilityId=6&from=2024-09-01&to=2026-08-31
+     * interval: MONTH (por defecto) o QUARTER.
+     */
+    @GetMapping("/trend")
+    public ResponseEntity<TrendResponseDTO> trend(
+            @RequestParam Long microorganismId,
+            @RequestParam Long antibioticId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long facilityId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "MONTH") AntibiogramService.TrendInterval interval) {
+        return ResponseEntity.ok(antibiogramService.trend(
+                microorganismId, antibioticId, districtId, facilityId, from, to, interval));
     }
 
     /**

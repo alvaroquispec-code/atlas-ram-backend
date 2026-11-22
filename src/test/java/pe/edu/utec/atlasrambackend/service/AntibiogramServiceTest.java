@@ -45,4 +45,30 @@ class AntibiogramServiceTest {
                 .filteredOn(e -> !e.sufficientData())
                 .extracting(AntibiogramResponseDTO::antibioticName).containsExactly("Nitrofurantoína");
     }
+
+    @Test
+    void periodosDeLaTendencia() {
+        assertThat(AntibiogramService.TrendInterval.MONTH.start(java.time.LocalDate.of(2026, 5, 17)))
+                .isEqualTo(java.time.LocalDate.of(2026, 5, 1));
+        assertThat(AntibiogramService.TrendInterval.QUARTER.start(java.time.LocalDate.of(2026, 5, 17)))
+                .isEqualTo(java.time.LocalDate.of(2026, 4, 1));
+        assertThat(AntibiogramService.TrendInterval.QUARTER.start(java.time.LocalDate.of(2024, 9, 1)))
+                .isEqualTo(java.time.LocalDate.of(2024, 7, 1));
+    }
+
+    @Test
+    void laTendenciaSeExpresaEnPuntosPorAnio() {
+        // Pendiente 0,02 por mes (2 puntos porcentuales) = 24 puntos por año.
+        var trend = AntibiogramService.toTrend(
+                new pe.edu.utec.atlasrambackend.stats.CochranArmitage.Result(3.1, 0.002, 0.02, 12, 400),
+                AntibiogramService.TrendInterval.MONTH);
+        assertThat(trend.changePerYear()).isCloseTo(24.0, within(1e-9));
+        assertThat(trend.direction()).isEqualTo("INCREASING");
+
+        var flat = AntibiogramService.toTrend(
+                new pe.edu.utec.atlasrambackend.stats.CochranArmitage.Result(-1.2, 0.23, -0.01, 8, 300),
+                AntibiogramService.TrendInterval.QUARTER);
+        assertThat(flat.direction()).isEqualTo("NO_SIGNIFICANT_TREND");
+        assertThat(flat.changePerYear()).isCloseTo(-4.0, within(1e-9));
+    }
 }
