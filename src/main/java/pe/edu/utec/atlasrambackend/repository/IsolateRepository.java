@@ -53,4 +53,8 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from Isolate i where i.dataUpload.id = :uploadId")
     int deleteByDataUploadId(@Param("uploadId") Long uploadId);
+
+    /** Fecha de toma más reciente del establecimiento: el "hoy" de sus datos para evaluar alertas. */
+    @Query("select max(i.collectionDate) from Isolate i where i.facility.id = :facilityId")
+    Optional<LocalDate> findLatestCollectionDate(@Param("facilityId") Long facilityId);
 }

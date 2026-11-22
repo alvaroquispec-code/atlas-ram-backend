@@ -3,6 +3,7 @@ package pe.edu.utec.atlasrambackend.repository;
 import pe.edu.utec.atlasrambackend.model.SusceptibilityResult;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.DistrictResistanceRow;
+import pe.edu.utec.atlasrambackend.dto.ResistanceCountRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -98,4 +99,22 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
             where r.isolate.id in (select i.id from Isolate i where i.dataUpload.id = :uploadId)
             """)
     int deleteByDataUploadId(@Param("uploadId") Long uploadId);
+
+    /** Probados y resistentes por combinación en un establecimiento y periodo; insumo del detector de brotes. */
+    @Query("""
+            select new pe.edu.utec.atlasrambackend.dto.ResistanceCountRow(
+                i.microorganism.id,
+                r.antibiotic.id,
+                count(r),
+                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end)
+            )
+            from SusceptibilityResult r
+            join r.isolate i
+            where i.facility.id = :facilityId
+              and i.collectionDate between :from and :to
+            group by i.microorganism.id, r.antibiotic.id
+            """)
+    List<ResistanceCountRow> countByCombination(@Param("facilityId") Long facilityId,
+                                                @Param("from") LocalDate from,
+                                                @Param("to") LocalDate to);
 }
