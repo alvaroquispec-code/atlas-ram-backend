@@ -94,7 +94,8 @@ public class AlertService {
 
     /**
      * Repite la evaluación semana a semana en un periodo pasado. Sirve para la demo y para validar el
-     * detector: muestra en qué fecha se habría disparado cada alerta.
+     * detector: muestra en qué fecha se habría disparado cada alerta. Cada alerta se devuelve tal como
+     * estaba al detectarse; las semanas siguientes solo actualizan la alerta ya abierta.
      */
     @Transactional
     public List<AlertResponseDTO> replay(Long facilityId, LocalDate from, LocalDate to, int stepDays) {
@@ -106,11 +107,12 @@ public class AlertService {
         }
         Facility facility = facilityRepository.findById(facilityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Establecimiento", facilityId));
-        List<ResistanceAlert> created = new ArrayList<>();
+        List<AlertResponseDTO> detected = new ArrayList<>();
         for (LocalDate asOf = from; !asOf.isAfter(to); asOf = asOf.plusDays(stepDays)) {
-            created.addAll(evaluate(facility, asOf));
+            // Se mapea en el momento: las evaluaciones posteriores modifican la misma entidad.
+            evaluate(facility, asOf).forEach(alert -> detected.add(alertMapper.toResponse(alert)));
         }
-        return created.stream().map(alertMapper::toResponse).toList();
+        return detected;
     }
 
     /** Evalúa todas las combinaciones del establecimiento en una fecha y devuelve las alertas nuevas. */
@@ -159,6 +161,7 @@ public class AlertService {
             alert.setFacility(facility);
             alert.setMicroorganism(microorganism);
             alert.setAntibioticClass(c.antibioticClass());
+            alert.setDetectedOn(asOf);
             apply(alert, c, windowStart, asOf);
             ResistanceAlert saved = alertRepository.save(alert);
             created.add(saved);

@@ -49,6 +49,11 @@ public class ResistanceAlert {
     @Column(nullable = false, length = 20)
     private AlertStatus status = AlertStatus.OPEN;
 
+    /** Fecha de la evaluación que creó la alerta. No se modifica en las actualizaciones posteriores. */
+    @NotNull
+    @Column(name = "detected_on", nullable = false, updatable = false)
+    private LocalDate detectedOn;
+
     @NotNull
     @Column(name = "window_start", nullable = false)
     private LocalDate windowStart;

@@ -17,6 +17,7 @@ public class AlertMapper {
                 a.getAntibiotic().getName(),
                 a.getAntibioticClass(),
                 a.getStatus(),
+                a.getDetectedOn(),
                 a.getWindowStart(),
                 a.getWindowEnd(),
                 a.getTestedCount(),

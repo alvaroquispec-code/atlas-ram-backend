@@ -105,6 +105,7 @@ class AlertServiceTest {
         assertThat(created.get(0).getAntibioticClass()).isEqualTo("Carbapenémico");
         // Se queda con la señal más fuerte: meropenem (10 de 13) sobre imipenem (9 de 13).
         assertThat(created.get(0).getAntibiotic().getCode()).isEqualTo("MEM");
+        assertThat(created.get(0).getDetectedOn()).isEqualTo(AS_OF);
         verify(eventPublisher, times(1)).publish(any(ResistanceAlertEvent.class));
     }
 
@@ -113,12 +114,15 @@ class AlertServiceTest {
         givenCarbapenemOutbreak();
         ResistanceAlert existing = new ResistanceAlert();
         existing.setStatus(AlertStatus.ACKNOWLEDGED);
+        existing.setDetectedOn(AS_OF.minusWeeks(3));
         when(alertRepository.findActive(6L, KPN, "Carbapenémico")).thenReturn(Optional.of(existing));
 
         List<ResistanceAlert> created = service.evaluate(hnhu, AS_OF);
 
         assertThat(created).isEmpty();
         assertThat(existing.getResistantCount()).isEqualTo(10);
+        // La fecha de detección no cambia aunque la alerta se actualice.
+        assertThat(existing.getDetectedOn()).isEqualTo(AS_OF.minusWeeks(3));
         verify(alertRepository, never()).save(any());
         verify(eventPublisher, never()).publish(any());
     }

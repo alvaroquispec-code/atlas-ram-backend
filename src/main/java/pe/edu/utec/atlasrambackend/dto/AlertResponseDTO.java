@@ -13,6 +13,7 @@ public record AlertResponseDTO(
         String antibioticName,
         String antibioticClass,
         AlertStatus status,
+        LocalDate detectedOn,
         LocalDate windowStart,
         LocalDate windowEnd,
         int testedCount,
