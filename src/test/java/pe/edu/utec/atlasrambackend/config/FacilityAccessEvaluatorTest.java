@@ -10,6 +10,7 @@ import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -67,5 +68,27 @@ class FacilityAccessEvaluatorTest {
     @Test
     void sinAutenticacionNoHayAcceso() {
         assertThat(evaluator.canAccessIsolate(null, 10L)).isFalse();
+    }
+
+    @Test
+    void tecnicoSoloVeLosEstablecimientosAsignados() {
+        when(userRepository.findFacilityIdsByEmail(LAB_EMAIL)).thenReturn(Set.of(1L, 3L));
+
+        assertThat(evaluator.visibleFacilityIds(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN")))
+                .contains(Set.of(1L, 3L));
+    }
+
+    @Test
+    void epidemiologoVeTodaLaRedSinRestriccion() {
+        assertThat(evaluator.visibleFacilityIds(as("epi@atlasram.test", "ROLE_EPIDEMIOLOGIST"))).isEmpty();
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void tecnicoSinEstablecimientosNoVeNada() {
+        when(userRepository.findFacilityIdsByEmail(LAB_EMAIL)).thenReturn(Set.of());
+
+        assertThat(evaluator.visibleFacilityIds(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN")))
+                .contains(Set.of());
     }
 }

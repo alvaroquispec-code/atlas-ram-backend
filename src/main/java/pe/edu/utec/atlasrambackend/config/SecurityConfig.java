@@ -81,6 +81,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/uploads/*/revert").hasRole("ADMIN")
                         .requestMatchers("/uploads/**").hasAnyRole("LAB_TECHNICIAN", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/isolates/**")
+                        .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/isolates/**", "/results/**")
                         .hasAnyRole("LAB_TECHNICIAN", "ADMIN")
                         .anyRequest().authenticated()

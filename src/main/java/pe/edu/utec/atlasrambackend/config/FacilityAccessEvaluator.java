@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
+import java.util.Optional;
+import java.util.Set;
+
 @Component("facilityAccess")
 public class FacilityAccessEvaluator {
 
@@ -42,6 +45,17 @@ public class FacilityAccessEvaluator {
         return isolateRepository.findFacilityIdById(isolateId)
                 .map(facilityId -> userRepository.isAssignedToFacility(authentication.getName(), facilityId))
                 .orElse(true);
+    }
+
+    /**
+     * Establecimientos cuyos aislamientos puede listar el usuario. Vacío significa sin restricción
+     * (ADMIN y EPIDEMIOLOGIST ven toda la red); un técnico solo ve los establecimientos asignados.
+     */
+    public Optional<Set<Long>> visibleFacilityIds(Authentication authentication) {
+        if (hasAnyRole(authentication, "ROLE_ADMIN", "ROLE_EPIDEMIOLOGIST")) {
+            return Optional.empty();
+        }
+        return Optional.of(userRepository.findFacilityIdsByEmail(authentication.getName()));
     }
 
     private boolean hasAnyRole(Authentication authentication, String... roles) {

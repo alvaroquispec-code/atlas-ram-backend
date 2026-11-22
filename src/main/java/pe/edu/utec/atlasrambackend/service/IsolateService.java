@@ -16,6 +16,8 @@ import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateSpecifications;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
 
+import java.util.Collection;
+
 @Service
 public class IsolateService {
 
@@ -44,9 +46,11 @@ public class IsolateService {
 
     /** Listado con filtros opcionales por establecimiento, microorganismo y tipo de muestra. */
     @Transactional(readOnly = true)
-    public Page<IsolateResponseDTO> search(Long facilityId, Long microorganismId, Specimen specimen, Pageable pageable) {
+    public Page<IsolateResponseDTO> search(Long facilityId, Long microorganismId, Specimen specimen,
+                                           Collection<Long> allowedFacilityIds, Pageable pageable) {
         return isolateRepository
-                .findAll(IsolateSpecifications.withFilters(facilityId, microorganismId, specimen), pageable)
+                .findAll(IsolateSpecifications.withFilters(facilityId, microorganismId, specimen, allowedFacilityIds),
+                        pageable)
                 .map(isolateMapper::toResponse);
     }
 
