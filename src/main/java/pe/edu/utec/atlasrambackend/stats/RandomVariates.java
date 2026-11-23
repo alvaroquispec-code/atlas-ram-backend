@@ -3,7 +3,7 @@ package pe.edu.utec.atlasrambackend.stats;
 import java.util.SplittableRandom;
 
 /**
- * Generadores de variables aleatorias para la simulación de Monte Carlo del WISCA.
+ * Generadores de variables aleatorias para las simulaciones de Monte Carlo (WISCA y bootstrap de demanda).
  * Gamma por el método de Marsaglia y Tsang (2000); Beta y Dirichlet a partir de Gammas.
  */
 public final class RandomVariates {
@@ -12,6 +12,16 @@ public final class RandomVariates {
 
     public RandomVariates(long seed) {
         this.random = new SplittableRandom(seed);
+    }
+
+    /** Entero uniforme en [0, bound). */
+    public int nextInt(int bound) {
+        return random.nextInt(bound);
+    }
+
+    /** Uniforme en [0, 1). */
+    public double uniform() {
+        return random.nextDouble();
     }
 
     /** Normal estándar por Box-Muller. */

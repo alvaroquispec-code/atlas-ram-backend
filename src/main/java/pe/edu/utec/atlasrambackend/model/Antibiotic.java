@@ -27,5 +27,10 @@ public class Antibiotic {
     @Column(length = 100)
     private String antibioticClass;
 
+    /** Grupo AWaRe de la OMS (Access, Watch, Reserve). Nulo si aún no se clasificó. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "aware_category", length = 20)
+    private AwareCategory awareCategory;
+
 
 }

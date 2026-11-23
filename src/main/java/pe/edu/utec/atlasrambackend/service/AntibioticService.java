@@ -60,6 +60,7 @@ public class AntibioticService {
         antibiotic.setCode(dto.code());
         antibiotic.setName(dto.name());
         antibiotic.setAntibioticClass(dto.antibioticClass());
+        antibiotic.setAwareCategory(dto.awareCategory());
         return antibioticMapper.toResponse(antibiotic);
     }
 

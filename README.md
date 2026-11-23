@@ -122,7 +122,16 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Alertas de brote.** Tras cada carga, el sistema compara las últimas 4 semanas de cada establecimiento con su propia línea base de 12 meses mediante una prueba binomial exacta, agrupa la señal por clase de antibiótico y mantiene una sola alerta activa por combinación; si la carga que la originó se revierte, la alerta se retira con el motivo.
 
-**Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos y usuarios públicos tienen permisos distintos.
+**Inventario de antibióticos.** La farmacia registra ingresos por lote, consumos (que salen primero del lote que vence antes, FEFO) y bajas. Para cada ítem, `GET /logistics/facilities/{id}/stock` calcula:
+
+- los indicadores de disponibilidad del SISMED (CPMA, meses de existencia y estado: desabastecido, substock, normostock, sobrestock o sin rotación);
+- el patrón de demanda (clasificación de Syntetos-Boylan-Croston) y el pronóstico que le corresponde (SES, SBA o TSB);
+- el pedido sugerido de una política de revisión periódica (R, S). S cubre la demanda de los R + L días con el nivel de servicio del ítem (99 % si es vital o Reserve AWaRe), y se estima con el bootstrap de Willemain, sin suponer normalidad;
+- la clase ABC-VEN, las unidades que vencerán sin usarse al ritmo actual y una señal de **presión de brote**. La señal aparece cuando hay una alerta activa en el establecimiento y un fármaco de escalamiento tiene poca cobertura.
+
+`GET /logistics/facilities/{id}/ddd` da el consumo en DDD por 100 camas-día por grupo AWaRe.
+
+**Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos, farmacéuticos y usuarios públicos tienen permisos distintos.
 
 ### Tecnologías utilizadas
 
@@ -405,6 +414,9 @@ export PATIENT_KEY_SECRET=... # openssl rand -base64 32
 ./mvnw spring-boot:run        # Flyway crea las tablas (db/migration)
 docker cp db/seed/data.sql atlasram-db:/tmp/data.sql
 docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
+# opcional: inventario sintético de demostración (HNHU)
+docker cp db/seed/inventario_demo.sql atlasram-db:/tmp/inventario_demo.sql
+docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 ```
 
 ### Variables de entorno
@@ -456,6 +468,10 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
+| `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |
+| `GET` | `/logistics/facilities/{id}/ddd?from&to&bedDays` | farmacéutico (su establecimiento), epidemiólogo o administrador |
+| `POST` | `/logistics/items`, `/logistics/items/{id}/receipts`, `/logistics/items/{id}/consumptions`, `/logistics/lots/{id}/write-off` | farmacéutico (su establecimiento) o administrador |
+| `GET` | `/logistics/items/{id}/lots`, `/logistics/items/{id}/movements` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 
 Usuarios de prueba del seed: `admin@atlasram.test`, contraseña `AtlasRam2026!`.
 
@@ -495,7 +511,7 @@ Aprendimos que las decisiones de modelado tienen consecuencias clínicas: guarda
 
 ### Datos de prueba
 
-Los datos del seed son **sintéticos**. Los catálogos usan nomenclatura real (códigos WHONET, ubigeo del INEI), y las tasas de resistencia están calibradas con estudios peruanos publicados. No corresponden a pacientes reales. El detalle está en `db/seed/CALIBRACION.md`.
+Los datos del seed son **sintéticos**. Los catálogos usan nomenclatura real (códigos WHONET, ubigeo del INEI), y las tasas de resistencia están calibradas con estudios peruanos publicados. No corresponden a pacientes reales. El detalle está en `db/seed/CALIBRACION.md`. El inventario de `db/seed/inventario_demo.sql` (consumos, costos y camas) también es sintético e ilustrativo; lo genera `gen_inventario_demo.py`.
 
 ### Licencia
 
@@ -510,3 +526,10 @@ MIT.
 5. Krapp F, Cuicapuza D, Salvatierra G, et al. *Emerging carbapenem-resistant Klebsiella pneumoniae in a tertiary care hospital in Lima, Peru*. Microbiology Spectrum. 2025;13(2). doi:10.1128/spectrum.01825-24
 6. Montañez-Valverde RA, Montenegro-Idrogo JJ, Arenas-Significación FR, Vásquez-Alva R. *Infección urinaria alta comunitaria por E. coli resistente a ciprofloxacino: características asociadas en pacientes de un hospital nacional en Perú*. Anales de la Facultad de Medicina. 2015;76(4):385-391.
 7. Ley N.º 29733, Ley de Protección de Datos Personales del Perú.
+8. Syntetos AA, Boylan JE, Croston JD. *On the categorization of demand patterns*. Journal of the Operational Research Society. 2005;56(5):495-503.
+9. Syntetos AA, Boylan JE. *The accuracy of intermittent demand estimates*. International Journal of Forecasting. 2005;21(2):303-314.
+10. Teunter RH, Syntetos AA, Babai MZ. *Intermittent demand: Linking forecasting to inventory obsolescence*. European Journal of Operational Research. 2011;214(3):606-615.
+11. Willemain TR, Smart CN, Schwarz HF. *A new approach to forecasting intermittent demand for service parts inventories*. International Journal of Forecasting. 2004;20(3):375-387.
+12. Silver EA, Pyke DF, Thomas DJ. *Inventory and Production Management in Supply Chains*. 4.ª ed. CRC Press; 2017.
+13. Management Sciences for Health. *MDS-3: Managing Access to Medicines and Health Technologies*. 2012.
+14. Organización Mundial de la Salud. *AWaRe classification of antibiotics* (2023) y WHO Collaborating Centre for Drug Statistics Methodology, *ATC/DDD Index*.

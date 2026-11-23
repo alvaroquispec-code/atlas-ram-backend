@@ -5,6 +5,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 import pe.edu.utec.atlasrambackend.repository.DataUploadRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
+import pe.edu.utec.atlasrambackend.repository.StockItemRepository;
+import pe.edu.utec.atlasrambackend.repository.StockLotRepository;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
 import java.util.Optional;
@@ -17,12 +19,17 @@ public class FacilityAccessEvaluator {
     private final UserRepository userRepository;
     private final IsolateRepository isolateRepository;
     private final DataUploadRepository uploadRepository;
+    private final StockItemRepository stockItemRepository;
+    private final StockLotRepository stockLotRepository;
 
     public FacilityAccessEvaluator(UserRepository userRepository, IsolateRepository isolateRepository,
-                                   DataUploadRepository uploadRepository) {
+                                   DataUploadRepository uploadRepository, StockItemRepository stockItemRepository,
+                                   StockLotRepository stockLotRepository) {
         this.userRepository = userRepository;
         this.isolateRepository = isolateRepository;
         this.uploadRepository = uploadRepository;
+        this.stockItemRepository = stockItemRepository;
+        this.stockLotRepository = stockLotRepository;
     }
 
     public boolean canAccess(Authentication authentication, Long facilityId) {
@@ -49,6 +56,18 @@ public class FacilityAccessEvaluator {
     public boolean canAccessUpload(Authentication authentication, Long uploadId) {
         return uploadId != null
                 && canAccessOwnedBy(authentication, () -> uploadRepository.findFacilityIdById(uploadId));
+    }
+
+    /** Igual, a partir de un ítem de inventario: un farmacéutico solo opera el inventario de su establecimiento. */
+    public boolean canAccessStockItem(Authentication authentication, Long itemId) {
+        return itemId != null
+                && canAccessOwnedBy(authentication, () -> stockItemRepository.findFacilityIdById(itemId));
+    }
+
+    /** Igual, a partir de un lote. */
+    public boolean canAccessStockLot(Authentication authentication, Long lotId) {
+        return lotId != null
+                && canAccessOwnedBy(authentication, () -> stockLotRepository.findFacilityIdById(lotId));
     }
 
     private boolean canAccessOwnedBy(Authentication authentication, Supplier<Optional<Long>> facilityOf) {

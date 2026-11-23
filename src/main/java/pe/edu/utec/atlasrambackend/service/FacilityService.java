@@ -81,6 +81,8 @@ public class FacilityService {
         facility.setCode(dto.code());
         facility.setName(dto.name());
         facility.setDistrict(getDistrictOrThrow(dto.districtId()));
+        facility.setBeds(dto.beds());
+        facility.setOccupancyRate(dto.occupancyRate());
         return facilityMapper.toResponse(facility);
     }
 
