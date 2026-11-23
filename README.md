@@ -131,6 +131,8 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 `GET /logistics/facilities/{id}/ddd` da el consumo en DDD por 100 camas-día por grupo AWaRe.
 
+**Procedencia de los datos.** Cada carga y cada aislamiento se marcan como reales (laboratorio) o sintéticos (prueba y demostración), y toda estadística se puede filtrar por procedencia. Los establecimientos guardan además su código único de IPRESS del RENIPRESS de SUSALUD (8 dígitos).
+
 **Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos, farmacéuticos y usuarios públicos tienen permisos distintos.
 
 ### Tecnologías utilizadas
@@ -452,6 +454,10 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 | `edad`, `sexo`, `ubigeo_residencia` | no | `47`, `F`, `150135` | |
 
 \* Cada fila necesita una CIM interpretable o la interpretación del laboratorio.
+
+**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) solo se aceptan con S, I o R, porque los diámetros todavía no se interpretan; si un antibiótico trae CIM y disco, se usa la CIM.
+
+**Procedencia.** `POST /uploads` recibe `origin=REAL` o `origin=SYNTHETIC` (por defecto `SYNTHETIC`: el sistema nunca presume que un dato es real). Todas las consultas del antibiograma, la tendencia, el WISCA y el mapa aceptan `origin` para calcular solo con datos reales, y cada fila del antibiograma informa `realDataPercentage`. El seed completo es `SYNTHETIC`.
 
 ### Endpoints principales
 

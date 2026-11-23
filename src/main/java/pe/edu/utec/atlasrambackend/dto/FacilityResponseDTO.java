@@ -8,6 +8,7 @@ public record FacilityResponseDTO(
         String name,
         Long districtId,
         String districtName,
+        String renipressCode,
         Integer beds,
         BigDecimal occupancyRate
 ) {}

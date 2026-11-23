@@ -192,6 +192,7 @@ public class UploadImporter {
         isolate.setPatientKey(patientKey);
         isolate.setLabIsolateId(labIsolateId);
         isolate.setDataUpload(upload);
+        isolate.setDataOrigin(upload.getDataOrigin());
         if (!row.residenceUbigeo().isBlank()) {
             districtRepository.findByUbigeo(row.residenceUbigeo()).ifPresent(isolate::setDistrict);
         }

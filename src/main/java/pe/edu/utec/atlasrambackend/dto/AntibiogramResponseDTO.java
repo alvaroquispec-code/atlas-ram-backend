@@ -26,5 +26,7 @@ public record AntibiogramResponseDTO(
         /** Aislamientos repetidos del mismo paciente que se excluyeron de esta fila. */
         long repeatIsolatesExcluded,
         /** Porcentaje de aislamientos con paciente identificado: sin él no se pueden excluir repetidos. */
-        double patientIdentifiedPercentage
+        double patientIdentifiedPercentage,
+        /** Porcentaje de los aislamientos de la fila que vienen de un laboratorio real (no sintéticos). */
+        double realDataPercentage
 ) {}

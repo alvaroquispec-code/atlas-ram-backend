@@ -6,6 +6,7 @@ import org.mockito.ArgumentCaptor;
 import pe.edu.utec.atlasrambackend.event.EventPublisher;
 import pe.edu.utec.atlasrambackend.ingest.PatientKeyService;
 import pe.edu.utec.atlasrambackend.model.Antibiotic;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 import pe.edu.utec.atlasrambackend.model.DataUpload;
 import pe.edu.utec.atlasrambackend.model.Facility;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
@@ -102,6 +103,15 @@ class UploadImporterTest {
         assertThat(isolates).hasSize(2);
         assertThat(isolates).extracting(Isolate::getPatientKey).doesNotContainNull().doesNotHaveDuplicates();
         assertThat(upload.getProcessedRows()).isEqualTo(2);
+    }
+
+    @Test
+    void losAislamientosHeredanLaProcedenciaDeLaCarga() {
+        upload.setDataOrigin(DataOrigin.REAL);
+
+        List<Isolate> isolates = run(HEADER + "2026-08-20,URINE,47,F,HNCH,eco,MEM,S,HC-001,\n");
+
+        assertThat(isolates).extracting(Isolate::getDataOrigin).containsExactly(DataOrigin.REAL);
     }
 
     @Test

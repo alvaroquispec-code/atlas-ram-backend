@@ -14,6 +14,7 @@ import pe.edu.utec.atlasrambackend.dto.WiscaResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
 import pe.edu.utec.atlasrambackend.wisca.Syndrome;
 import pe.edu.utec.atlasrambackend.wisca.WiscaService;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -34,6 +35,7 @@ public class AntibiogramController {
      * Consulta pública de resistencia acumulada (CLSI M39: primer aislamiento por paciente).
      * Ejemplo: /antibiogram?microorganismId=1&from=2025-01-01&to=2025-12-31
      * Con includeInsufficient=true también devuelve las combinaciones con menos de 30 aislamientos.
+     * origin (opcional, en todas las consultas): REAL o SYNTHETIC; sin él se usa toda procedencia.
      */
     @GetMapping
     public ResponseEntity<List<AntibiogramResponseDTO>> calculate(
@@ -41,9 +43,10 @@ public class AntibiogramController {
             @RequestParam(required = false) Long districtId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "false") boolean includeInsufficient) {
+            @RequestParam(defaultValue = "false") boolean includeInsufficient,
+            @RequestParam(required = false) DataOrigin origin) {
         return ResponseEntity.ok(
-                antibiogramService.calculate(microorganismId, districtId, from, to, includeInsufficient));
+                antibiogramService.calculate(microorganismId, districtId, from, to, includeInsufficient, origin));
     }
 
     /**
@@ -54,8 +57,9 @@ public class AntibiogramController {
     public ResponseEntity<ReferralAntibiogramResponseDTO> calculateReferral(
             @RequestParam Long districtId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ResponseEntity.ok(antibiogramService.calculateReferral(districtId, from, to));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) DataOrigin origin) {
+        return ResponseEntity.ok(antibiogramService.calculateReferral(districtId, from, to, origin));
     }
 
     /**
@@ -71,9 +75,10 @@ public class AntibiogramController {
             @RequestParam(required = false) Long facilityId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "MONTH") AntibiogramService.TrendInterval interval) {
+            @RequestParam(defaultValue = "MONTH") AntibiogramService.TrendInterval interval,
+            @RequestParam(required = false) DataOrigin origin) {
         return ResponseEntity.ok(antibiogramService.trend(
-                microorganismId, antibioticId, districtId, facilityId, from, to, interval));
+                microorganismId, antibioticId, districtId, facilityId, from, to, interval, origin));
     }
 
     /**
@@ -89,8 +94,10 @@ public class AntibiogramController {
             @RequestParam(required = false) List<String> regimens,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long facilityId,
-            @RequestParam(defaultValue = "90") double target) {
-        return ResponseEntity.ok(wiscaService.calculate(syndrome, regimens, districtId, facilityId, from, to, target));
+            @RequestParam(defaultValue = "90") double target,
+            @RequestParam(required = false) DataOrigin origin) {
+        return ResponseEntity.ok(wiscaService.calculate(syndrome, regimens, districtId, facilityId, from, to, target,
+                origin));
     }
 
     /**
@@ -102,8 +109,9 @@ public class AntibiogramController {
             @RequestParam Long microorganismId,
             @RequestParam Long antibioticId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) DataOrigin origin) {
         return ResponseEntity.ok(
-                antibiogramService.calculateByDistrict(microorganismId, antibioticId, from, to));
+                antibiogramService.calculateByDistrict(microorganismId, antibioticId, from, to, origin));
     }
 }

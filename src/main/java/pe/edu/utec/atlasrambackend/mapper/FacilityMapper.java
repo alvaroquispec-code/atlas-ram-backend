@@ -16,6 +16,7 @@ public class FacilityMapper {
                 f.getName(),
                 f.getDistrict().getId(),
                 f.getDistrict().getName(),
+                f.getRenipressCode(),
                 f.getBeds(),
                 f.getOccupancyRate()
         );
@@ -26,8 +27,13 @@ public class FacilityMapper {
         facility.setCode(dto.code());
         facility.setName(dto.name());
         facility.setDistrict(district);
+        facility.setRenipressCode(blankToNull(dto.renipressCode()));
         facility.setBeds(dto.beds());
         facility.setOccupancyRate(dto.occupancyRate());
         return facility;
+    }
+
+    static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

@@ -98,4 +98,9 @@ public class Isolate {
         results.remove(result);
         result.setIsolate(null);
     }
+
+    /** REAL o SYNTHETIC. Ver DataOrigin. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_origin", nullable = false, length = 20)
+    private DataOrigin dataOrigin = DataOrigin.SYNTHETIC;
 }

@@ -8,6 +8,7 @@ import pe.edu.utec.atlasrambackend.model.Antibiotic;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.repository.AntibiogramQueries;
 import pe.edu.utec.atlasrambackend.repository.AntibioticRepository;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public class WiscaService {
      */
     @Transactional(readOnly = true)
     public WiscaResponseDTO calculate(Syndrome syndrome, List<String> regimens, Long districtId, Long facilityId,
-                                      LocalDate from, LocalDate to, double target) {
+                                      LocalDate from, LocalDate to, double target, DataOrigin origin) {
         if (from.isAfter(to)) {
             throw new BusinessRuleException("La fecha inicial no puede ser posterior a la final");
         }
@@ -61,7 +62,8 @@ public class WiscaService {
         Map<String, Antibiotic> antibiotics = resolveAntibiotics(parsed);
 
         List<WiscaCalculator.IsolateProfile> profiles = toProfiles(queries.profiles(
-                syndrome.specimen().name(), districtId, facilityId == null ? null : List.of(facilityId), from, to));
+                syndrome.specimen().name(), districtId, facilityId == null ? null : List.of(facilityId), from, to,
+                origin));
         WiscaCalculator.Result result = WiscaCalculator.compute(profiles, parsed, target, DRAWS, SEED);
 
         List<WiscaResponseDTO.Regimen> regimenDtos = result.regimens().stream()

@@ -11,13 +11,16 @@ import static org.assertj.core.api.Assertions.within;
 
 class AntibiogramServiceTest {
 
-    /** E. coli · meropenem: 40 primeros aislamientos (38 S, 1 I, 1 R), 10 repetidos excluidos, 30 identificados. */
+    /**
+     * E. coli · meropenem: 40 primeros aislamientos (38 S, 1 I, 1 R), 10 repetidos excluidos, 30 identificados,
+     * 10 de un laboratorio real.
+     */
     private static final AntibiogramQueries.Row MEROPENEM =
-            new AntibiogramQueries.Row(1L, "Escherichia coli", 11L, "Meropenem", 40, 38, 1, 1, 30, 50);
+            new AntibiogramQueries.Row(1L, "Escherichia coli", 11L, "Meropenem", 40, 38, 1, 1, 30, 50, 10);
 
     /** Solo 12 aislamientos: por debajo del mínimo de CLSI M39. */
     private static final AntibiogramQueries.Row FEW =
-            new AntibiogramQueries.Row(1L, "Escherichia coli", 17L, "Nitrofurantoína", 12, 11, 0, 1, 0, 12);
+            new AntibiogramQueries.Row(1L, "Escherichia coli", 17L, "Nitrofurantoína", 12, 11, 0, 1, 0, 12, 0);
 
     @Test
     void calculaPorcentajesEIntervalos() {
@@ -33,6 +36,7 @@ class AntibiogramServiceTest {
         assertThat(e.repeatIsolatesExcluded()).isEqualTo(10);
         assertThat(e.patientIdentifiedPercentage()).isCloseTo(75.0, within(1e-9));
         assertThat(e.sufficientData()).isTrue();
+        assertThat(e.realDataPercentage()).isCloseTo(25.0, within(1e-9));
     }
 
     @Test

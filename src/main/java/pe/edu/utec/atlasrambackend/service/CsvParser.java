@@ -24,6 +24,8 @@ import java.util.Set;
  * Las columnas se reconocen por su nombre, no por su posición, y las que el sistema no usa se ignoran
  * (una exportación de laboratorio suele traer muchas más). Un error en la cabecera invalida el archivo;
  * un error en una fila solo descarta esa fila.
+ *
+ * También reconoce una exportación de WHONET (una columna por antibiótico) y la convierte: ver WhonetFormat.
  */
 @Component
 public class CsvParser {
@@ -61,6 +63,9 @@ public class CsvParser {
         }
 
         CsvRecord header = records.get(0);
+        if (WhonetFormat.matches(header.fields())) {
+            return WhonetFormat.convert(header.fields(), records.subList(1, records.size()));
+        }
         Map<String, Integer> columns = mapHeader(header.fields());
         int width = header.fields().size();
 

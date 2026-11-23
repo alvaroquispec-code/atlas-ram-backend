@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 @RestController
 @RequestMapping("/uploads")
@@ -68,6 +69,7 @@ public class UploadController {
     public ResponseEntity<DataUploadResponseDTO> upload(
             @RequestParam("file") @NotNull MultipartFile file,
             @RequestParam("facilityId") Long facilityId,
+            @RequestParam(value = "origin", defaultValue = "SYNTHETIC") DataOrigin origin,
             @AuthenticationPrincipal UserDetails principal) throws IOException {
 
         if (file.isEmpty()) {
@@ -99,6 +101,7 @@ public class UploadController {
         upload.setUploadedBy(user);
         upload.setFacility(facility);
         upload.setFileSha256(sha256);
+        upload.setDataOrigin(origin);
 
         DataUpload saved = uploadRepository.save(upload);
 

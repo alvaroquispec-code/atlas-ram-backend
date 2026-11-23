@@ -19,6 +19,7 @@ import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
 import pe.edu.utec.atlasrambackend.stats.CochranArmitage;
 import pe.edu.utec.atlasrambackend.stats.Proportions;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -61,9 +62,10 @@ public class AntibiogramService {
                                                   Long districtId,
                                                   LocalDate from,
                                                   LocalDate to,
-                                                  boolean includeInsufficient) {
+                                                  boolean includeInsufficient,
+                                                  DataOrigin origin) {
         validateRange(from, to);
-        return toEntries(antibiogramQueries.antibiogram(microorganismId, districtId, null, from, to),
+        return toEntries(antibiogramQueries.antibiogram(microorganismId, districtId, null, from, to, origin),
                 includeInsufficient);
     }
 
@@ -86,7 +88,8 @@ public class AntibiogramService {
                 s.low(), s.high(), res.low(), res.high(),
                 r.tested() >= MIN_RESULTS,
                 r.testedAll() - r.tested(),
-                Proportions.percentage(r.identified(), r.tested()));
+                Proportions.percentage(r.identified(), r.tested()),
+                Proportions.percentage(r.realCount(), r.tested()));
     }
 
     /**
@@ -98,7 +101,8 @@ public class AntibiogramService {
     public List<DistrictResistanceResponseDTO> calculateByDistrict(Long microorganismId,
                                                                    Long antibioticId,
                                                                    LocalDate from,
-                                                                   LocalDate to) {
+                                                                   LocalDate to,
+                                                                   DataOrigin origin) {
         validateRange(from, to);
         if (!microorganismRepository.existsById(microorganismId)) {
             throw new ResourceNotFoundException("Microorganismo", microorganismId);
@@ -107,7 +111,7 @@ public class AntibiogramService {
             throw new ResourceNotFoundException("Antibiótico", antibioticId);
         }
         Map<Long, AntibiogramQueries.DistrictRow> rows = antibiogramQueries
-                .byDistrict(microorganismId, antibioticId, from, to).stream()
+                .byDistrict(microorganismId, antibioticId, from, to, origin).stream()
                 .collect(Collectors.toMap(AntibiogramQueries.DistrictRow::districtId, Function.identity()));
         return districtRepository.findAll(Sort.by("ubigeo")).stream()
                 .map(district -> toResponse(district, rows.get(district.getId())))
@@ -121,7 +125,8 @@ public class AntibiogramService {
      * del distrito reciben y se calcula el antibiograma con todos los aislamientos de esos hospitales.
      */
     @Transactional(readOnly = true)
-    public ReferralAntibiogramResponseDTO calculateReferral(Long districtId, LocalDate from, LocalDate to) {
+    public ReferralAntibiogramResponseDTO calculateReferral(Long districtId, LocalDate from, LocalDate to,
+                                                            DataOrigin origin) {
         validateRange(from, to);
         District district = districtRepository.findById(districtId)
                 .orElseThrow(() -> new ResourceNotFoundException("Distrito", districtId));
@@ -137,7 +142,7 @@ public class AntibiogramService {
         List<AntibiogramResponseDTO> entries = top.isEmpty()
                 ? List.of()
                 : toEntries(antibiogramQueries.antibiogram(null, null,
-                        top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to), false);
+                        top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to, origin), false);
 
         return new ReferralAntibiogramResponseDTO(district.getName(), facilities, entries);
     }
@@ -173,7 +178,7 @@ public class AntibiogramService {
      */
     @Transactional(readOnly = true)
     public TrendResponseDTO trend(Long microorganismId, Long antibioticId, Long districtId, Long facilityId,
-                                  LocalDate from, LocalDate to, TrendInterval interval) {
+                                  LocalDate from, LocalDate to, TrendInterval interval, DataOrigin origin) {
         validateRange(from, to);
         if (from.plusYears(MAX_TREND_YEARS).isBefore(to)) {
             throw new BusinessRuleException("El periodo de la tendencia no puede superar " + MAX_TREND_YEARS + " años");
@@ -185,7 +190,7 @@ public class AntibiogramService {
 
         Map<LocalDate, AntibiogramQueries.PeriodRow> rows = antibiogramQueries
                 .trend(microorganismId, antibioticId, districtId, facilityId == null ? null : List.of(facilityId),
-                        from, to, interval.sqlUnit).stream()
+                        from, to, interval.sqlUnit, origin).stream()
                 .collect(Collectors.toMap(AntibiogramQueries.PeriodRow::period, Function.identity()));
 
         List<TrendResponseDTO.Point> points = new java.util.ArrayList<>();

@@ -29,7 +29,8 @@ public class IsolateMapper {
                 organismName,
                 uploadId,
                 i.getLabIsolateId(),
-                i.getPatientKey() != null
+                i.getPatientKey() != null,
+                i.getDataOrigin()
         );
     }
 }

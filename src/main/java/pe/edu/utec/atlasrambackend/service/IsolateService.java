@@ -17,6 +17,7 @@ import pe.edu.utec.atlasrambackend.repository.IsolateSpecifications;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
 
 import java.util.Collection;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 @Service
 public class IsolateService {
@@ -70,6 +71,7 @@ public class IsolateService {
         isolate.setSpecimenType(dto.specimenType());
         isolate.setPatientAge(dto.patientAge());
         isolate.setPatientSex(dto.patientSex());
+        isolate.setDataOrigin(dto.dataOrigin() == null ? DataOrigin.SYNTHETIC : dto.dataOrigin());
         isolate.setFacility(facilityRepository.findById(dto.facilityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Establecimiento", dto.facilityId())));
         isolate.setMicroorganism(microorganismRepository.findById(dto.microorganismId())

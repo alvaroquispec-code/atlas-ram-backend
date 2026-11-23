@@ -35,6 +35,10 @@ public class Facility {
     @JoinColumn(name = "district_id", nullable = false)
     private District district;
 
+    /** Código único de IPRESS asignado por SUSALUD en el RENIPRESS (8 dígitos). */
+    @Column(name = "renipress_code", length = 8)
+    private String renipressCode;
+
     /** Camas de hospitalización; con la ocupación da los días-cama del indicador DDD. */
     @Column(name = "beds")
     private Integer beds;

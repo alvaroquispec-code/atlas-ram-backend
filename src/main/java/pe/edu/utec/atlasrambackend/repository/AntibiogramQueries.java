@@ -3,6 +3,7 @@ package pe.edu.utec.atlasrambackend.repository;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -27,7 +28,7 @@ public class AntibiogramQueries {
     /** Aislamientos del periodo y filtros, numerados por paciente y especie en orden de fecha. */
     private static final String RANKED_ISOLATES = """
             with eligible as (
-                select i.id, i.microorganism_id, i.patient_key, i.collection_date,
+                select i.id, i.microorganism_id, i.patient_key, i.collection_date, i.data_origin,
                        i.aggregation_district_id as district_id
                 from isolate i
                 where i.collection_date between :from and :to
@@ -35,6 +36,7 @@ public class AntibiogramQueries {
                   and (cast(:districtId as bigint) is null or i.aggregation_district_id = :districtId)
                   and (:allFacilities or i.facility_id in (:facilityIds))
                   and (cast(:specimen as varchar) is null or i.specimen_type = :specimen)
+                  and (cast(:origin as varchar) is null or i.data_origin = :origin)
             ),
             ranked as (
                 select e.*,
@@ -52,6 +54,7 @@ public class AntibiogramQueries {
                    count(*) filter (where x.rn = 1 and r.interpretation = 'INTERMEDIATE')   as intermediate,
                    count(*) filter (where x.rn = 1 and r.interpretation = 'RESISTANT')      as resistant,
                    count(*) filter (where x.rn = 1 and x.patient_key is not null)           as identified,
+                   count(*) filter (where x.rn = 1 and x.data_origin = 'REAL')              as real_count,
                    count(*)                                                                 as tested_all
             from ranked x
             join susceptibility_result r on r.isolate_id = x.id
@@ -87,6 +90,7 @@ public class AntibiogramQueries {
                   and i.microorganism_id = :microorganismId
                   and (cast(:districtId as bigint) is null or i.aggregation_district_id = :districtId)
                   and (:allFacilities or i.facility_id in (:facilityIds))
+                  and (cast(:origin as varchar) is null or i.data_origin = :origin)
             ),
             ranked as (
                 select e.*,
@@ -128,7 +132,7 @@ public class AntibiogramQueries {
     /** Una fila del antibiograma: un par microorganismo-antibiótico. */
     public record Row(Long microorganismId, String microorganismName, Long antibioticId, String antibioticName,
                       long tested, long susceptible, long intermediate, long resistant,
-                      long identified, long testedAll) {
+                      long identified, long testedAll, long realCount) {
     }
 
     public record DistrictRow(Long districtId, long tested, long susceptible, long resistant) {
@@ -140,15 +144,16 @@ public class AntibiogramQueries {
         this.jdbc = jdbc;
     }
 
-    /** facilityIds null = todos los establecimientos. */
+    /** facilityIds null = todos los establecimientos. origin null = toda procedencia. */
     public List<Row> antibiogram(Long microorganismId, Long districtId, Collection<Long> facilityIds,
-                                 LocalDate from, LocalDate to) {
-        return jdbc.query(ANTIBIOGRAM, params(microorganismId, districtId, facilityIds, from, to),
+                                 LocalDate from, LocalDate to, DataOrigin origin) {
+        return jdbc.query(ANTIBIOGRAM, params(microorganismId, districtId, facilityIds, from, to, origin),
                 AntibiogramQueries::mapRow);
     }
 
-    public List<DistrictRow> byDistrict(Long microorganismId, Long antibioticId, LocalDate from, LocalDate to) {
-        MapSqlParameterSource params = params(microorganismId, null, null, from, to)
+    public List<DistrictRow> byDistrict(Long microorganismId, Long antibioticId, LocalDate from, LocalDate to,
+                                        DataOrigin origin) {
+        MapSqlParameterSource params = params(microorganismId, null, null, from, to, origin)
                 .addValue("antibioticId", antibioticId);
         return jdbc.query(BY_DISTRICT, params, (rs, i) -> new DistrictRow(
                 rs.getLong("district_id"), rs.getLong("tested"), rs.getLong("susceptible"), rs.getLong("resistant")));
@@ -156,8 +161,8 @@ public class AntibiogramQueries {
 
     /** Primeros aislamientos de un tipo de muestra con todos sus resultados. facilityIds null = todos. */
     public List<ProfileRow> profiles(String specimen, Long districtId, Collection<Long> facilityIds,
-                                     LocalDate from, LocalDate to) {
-        MapSqlParameterSource params = params(null, districtId, facilityIds, from, to)
+                                     LocalDate from, LocalDate to, DataOrigin origin) {
+        MapSqlParameterSource params = params(null, districtId, facilityIds, from, to, origin)
                 .addValue("specimen", specimen, java.sql.Types.VARCHAR);
         return jdbc.query(PROFILES, params, (rs, i) -> {
             String species = rs.getString("species");
@@ -170,8 +175,9 @@ public class AntibiogramQueries {
 
     /** unit: "month" o "quarter" (argumento de date_trunc). facilityIds null = todos. */
     public List<PeriodRow> trend(Long microorganismId, Long antibioticId, Long districtId,
-                                 Collection<Long> facilityIds, LocalDate from, LocalDate to, String unit) {
-        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to)
+                                 Collection<Long> facilityIds, LocalDate from, LocalDate to, String unit,
+                                 DataOrigin origin) {
+        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to, origin)
                 .addValue("antibioticId", antibioticId)
                 .addValue("unit", unit);
         return jdbc.query(TREND, params, (rs, i) -> new PeriodRow(
@@ -180,7 +186,7 @@ public class AntibiogramQueries {
     }
 
     private static MapSqlParameterSource params(Long microorganismId, Long districtId, Collection<Long> facilityIds,
-                                                LocalDate from, LocalDate to) {
+                                                LocalDate from, LocalDate to, DataOrigin origin) {
         boolean all = facilityIds == null;
         return new MapSqlParameterSource()
                 .addValue("from", from)
@@ -189,6 +195,7 @@ public class AntibiogramQueries {
                 .addValue("districtId", districtId, java.sql.Types.BIGINT)
                 .addValue("allFacilities", all)
                 .addValue("specimen", null, java.sql.Types.VARCHAR)
+                .addValue("origin", origin == null ? null : origin.name(), java.sql.Types.VARCHAR)
                 // "in ()" vacío es SQL inválido; con allFacilities = true esta lista no se evalúa.
                 .addValue("facilityIds", all || facilityIds.isEmpty() ? List.of(-1L) : facilityIds);
     }
@@ -199,6 +206,6 @@ public class AntibiogramQueries {
         return new Row(rs.getLong("microorganism_id"), name, rs.getLong("antibiotic_id"),
                 rs.getString("antibiotic_name"), rs.getLong("tested"), rs.getLong("susceptible"),
                 rs.getLong("intermediate"), rs.getLong("resistant"), rs.getLong("identified"),
-                rs.getLong("tested_all"));
+                rs.getLong("tested_all"), rs.getLong("real_count"));
     }
 }

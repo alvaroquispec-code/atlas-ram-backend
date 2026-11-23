@@ -20,7 +20,8 @@ public class DataUploadMapper {
                 u.getFinishedAt(),
                 u.getRevertedAt(),
                 u.getRevertedBy() == null ? null : u.getRevertedBy().getFullName(),
-                u.getRevertReason()
+                u.getRevertReason(),
+                u.getDataOrigin()
         );
     }
 }
