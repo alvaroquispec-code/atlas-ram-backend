@@ -39,6 +39,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Tablero de inventario de antibióticos de un establecimiento y su indicador de consumo DDD.
@@ -63,7 +65,8 @@ public class LogisticsService {
             Nivel de servicio: 99 % vital o Reserve, 95 % esencial o Watch, 90 % el resto, salvo valor del ítem. \
             ABC por valor de consumo de 12 meses cruzado con VEN. Riesgo de vencimiento: saldo de cada lote que no \
             se consumirá antes de vencer al ritmo actual (FEFO). Presión de brote: alerta activa + fármaco de \
-            escalamiento de otra clase + cobertura menor a 1.5 × (R + L).""";
+            escalamiento (otra clase y ≥ 80 % de sensibles frente al germen en alerta en el antibiograma local de 12 meses) \
+            con cobertura menor a 1.5 × (R + L).""";
 
     private final StockItemRepository itemRepository;
     private final StockLotRepository lotRepository;
@@ -109,7 +112,8 @@ public class LogisticsService {
             lotsByItem.computeIfAbsent(lot.getStockItem().getId(), k -> new ArrayList<>()).add(lot);
         }
         List<OutbreakPressure.ActiveAlert> alerts = alertRepository.findActiveByFacility(facilityId).stream()
-                .map(a -> new OutbreakPressure.ActiveAlert(organismName(a.getMicroorganism()), a.getAntibioticClass()))
+                .map(a -> new OutbreakPressure.ActiveAlert(organismName(a.getMicroorganism()), a.getAntibioticClass(),
+                        activeDrugs(facilityId, a.getMicroorganism().getId(), today)))
                 .toList();
 
         Map<Long, Double> annualValue = new HashMap<>();
@@ -302,6 +306,14 @@ public class LogisticsService {
         int[] series = new int[HISTORY_MONTHS - start];
         System.arraycopy(source, start, series, 0, series.length);
         return series;
+    }
+
+    /** Antibióticos que siguen siendo activos frente al germen según el antibiograma local de 12 meses. */
+    private Set<String> activeDrugs(Long facilityId, Long microorganismId, LocalDate today) {
+        return queries.susceptibility(facilityId, microorganismId, today.minusMonths(HISTORY_MONTHS), today).stream()
+                .filter(r -> OutbreakPressure.activeDrug(r.tested(), r.susceptible()))
+                .map(LogisticsQueries.SusceptibilityRow::antibioticCode)
+                .collect(Collectors.toSet());
     }
 
     private static String organismName(Microorganism m) {

@@ -8,9 +8,10 @@ Situaciones que deja la demo en el Hospital Nacional Hipólito Unanue (HNHU), al
   MEM  consumo estable, reposiciones menores al consumo        -> substock, pedido sugerido
   VAN  el proveedor dejó de entregar en agosto                  -> desabastecido; el CPMA excluye los meses en 0
   CRO  consumo estable y bien abastecido                        -> normostock
-  AMK  una compra grande con vencimiento corto                    -> sobrestock y unidades en riesgo de vencer
+  AMK  reposiciones por debajo del consumo                        -> substock; con la alerta de K. pneumoniae
+                                                                   resistente a carbapenémicos, presión de brote
   LNZ  Reserve AWaRe, tratamientos esporádicos                  -> demanda intermitente (SBA), servicio 99 %
-  CZO  consumo estable                                          -> normostock
+  CZO  una compra grande con vencimiento corto                    -> sobrestock y unidades en riesgo de vencer
   ETP  se dejó de usar en abril                                 -> sin rotación
   CIP  uso esporádico que se apagó en julio                     -> intermitente que se apaga (TSB)
 
@@ -102,9 +103,10 @@ def receipts(code):
     if code == "CRO":
         return [(START, 1500, 900)] + [(x + timedelta(days=3), 610, 900) for x in monthly[1:]]
     if code == "CZO":
-        return [(START, 700, 900)] + [(x + timedelta(days=3), 370, 900) for x in monthly[1:]]
+        return ([(START, 700, 900)] + [(x + timedelta(days=3), 370, 900) for x in monthly[1:] if x < date(2026, 5, 1)]
+                + [(date(2026, 5, 6), 4600, 270)])
     if code == "AMK":
-        return [(START, 300, 720), (date(2026, 2, 10), 250, 720), (date(2026, 5, 6), 2200, 270)]
+        return [(START, 300, 720)] + [(x + timedelta(days=4), 130, 720) for x in monthly[1:]]
     if code == "ETP":
         return [(START, 260, 720)]
     if code == "CIP":

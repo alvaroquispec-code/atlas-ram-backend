@@ -435,6 +435,8 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 
   Corren sobre un PostgreSQL 16 desechable que levanta **Testcontainers** (Docker tiene que estar encendido), al que Flyway le aplica todas las migraciones desde cero. Así las pruebas nunca tocan la base de desarrollo y el CI prueba en cada push que un despliegue limpio funcione.
 
+**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`.
+
 ### Variables de entorno
 
 | Variable | Descripción |

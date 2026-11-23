@@ -44,6 +44,19 @@ public class LogisticsQueries {
             order by a.code
             """;
 
+    /** Sensibilidad de cada antibiótico frente a un microorganismo en un establecimiento (todos los resultados). */
+    private static final String SUSCEPTIBILITY = """
+            select a.code, count(*) as tested,
+                   count(*) filter (where r.interpretation = 'SUSCEPTIBLE') as susceptible
+            from isolate i
+            join susceptibility_result r on r.isolate_id = i.id
+            join antibiotic a on a.id = r.antibiotic_id
+            where i.facility_id = :facilityId
+              and i.microorganism_id = :microorganismId
+              and i.collection_date between :from and :to
+            group by a.code
+            """;
+
     private final NamedParameterJdbcTemplate jdbc;
 
     public LogisticsQueries(NamedParameterJdbcTemplate jdbc) {
@@ -54,6 +67,9 @@ public class LogisticsQueries {
     }
 
     public record FirstMovementRow(long itemId, LocalDate firstDate) {
+    }
+
+    public record SusceptibilityRow(String antibioticCode, long tested, long susceptible) {
     }
 
     public record DddRow(long itemId, String code, String name, String presentation, String awareCategory,
@@ -82,5 +98,13 @@ public class LogisticsQueries {
                 rs.getLong("item_id"), rs.getString("code"), rs.getString("name"), rs.getString("presentation"),
                 rs.getString("aware_category"), rs.getBigDecimal("grams_per_unit"), rs.getBigDecimal("ddd_grams"),
                 rs.getLong("units")));
+    }
+
+    public List<SusceptibilityRow> susceptibility(Long facilityId, Long microorganismId, LocalDate from, LocalDate to) {
+        var params = new MapSqlParameterSource()
+                .addValue("facilityId", facilityId).addValue("microorganismId", microorganismId)
+                .addValue("from", from).addValue("to", to);
+        return jdbc.query(SUSCEPTIBILITY, params, (rs, i) -> new SusceptibilityRow(
+                rs.getString("code"), rs.getLong("tested"), rs.getLong("susceptible")));
     }
 }
