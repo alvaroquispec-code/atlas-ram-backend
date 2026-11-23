@@ -433,7 +433,7 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
   - el kardex FEFO;
   - dos consumos simultáneos del mismo lote, para comprobar que nunca dejan stock negativo.
 
-  Cada prueba crea sus propios datos y los revierte, así que no dependen del seed. En GitHub Actions corren sobre el servicio `postgres:16` del workflow; en local, sobre la base de `docker compose`.
+  Corren sobre un PostgreSQL 16 desechable que levanta **Testcontainers** (Docker tiene que estar encendido), al que Flyway le aplica todas las migraciones desde cero. Así las pruebas nunca tocan la base de desarrollo y el CI prueba en cada push que un despliegue limpio funcione.
 
 ### Variables de entorno
 

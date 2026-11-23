@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import pe.edu.utec.atlasrambackend.TestcontainersConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * real. Cada prueba corre en una transacción que se revierte al final: no deja datos.
  */
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 @Transactional
 class DatabaseRulesIntegrationTest {
 

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import pe.edu.utec.atlasrambackend.TestcontainersConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
@@ -19,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Se filtra por el establecimiento de la prueba para no mezclar con otros datos de la base.
  */
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 @Transactional
 class AntibiogramQueriesIntegrationTest {
 

@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import pe.edu.utec.atlasrambackend.TestcontainersConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -31,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * nunca quedan unidades negativas. Esta prueba necesita transacciones confirmadas, así que limpia al final.
  */
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 class StockConcurrencyIntegrationTest {
 
     private static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Lima"));

@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import pe.edu.utec.atlasrambackend.TestcontainersConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.StockConsumptionDTO;
@@ -21,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** El kardex contra PostgreSQL real: FEFO, rechazo sin escrituras parciales y agregación mensual. */
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 @Transactional
 class StockIntegrationTest {
 

@@ -11,21 +11,6 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: atlasram_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,12 +25,10 @@ jobs:
       - name: Compilar
         run: mvn -B clean compile
 
+      # La base de las pruebas la levanta Testcontainers en el Docker del runner (ver TestcontainersConfiguration).
       - name: Ejecutar tests
         run: mvn -B test
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/atlasram_test
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
           JWT_SECRET: Q0lfc29sb19wYXJhX3Rlc3RzX25vX3VzYXJfZW5fcHJvZHVjY2lvbl8xMjM0
           PATIENT_KEY_SECRET: Q0lfc29sb19wYXJhX3Rlc3RzX2NsYXZlX2RlX3BhY2llbnRlXzAwMDE=
 
