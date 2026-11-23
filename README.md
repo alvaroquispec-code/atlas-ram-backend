@@ -421,6 +421,20 @@ docker cp db/seed/inventario_demo.sql atlasram-db:/tmp/inventario_demo.sql
 docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 ```
 
+### Pruebas
+
+`./mvnw test` corre dos niveles de pruebas:
+
+- **Unitarias** (con Mockito): estadística (Wilson, Cochran-Armitage, WISCA, bootstrap de Willemain), lectura de CSV y WHONET, reglas de carga, inventario y control de acceso.
+- **De integración** contra PostgreSQL real (`src/test/java/.../integration`):
+  - los triggers del distrito de agregación;
+  - las restricciones de la base (estados, procedencia, RENIPRESS, saldo de lotes, archivo duplicado, código de aislamiento único);
+  - las consultas SQL del antibiograma CLSI M39, la tendencia y el WISCA;
+  - el kardex FEFO;
+  - dos consumos simultáneos del mismo lote, para comprobar que nunca dejan stock negativo.
+
+  Cada prueba crea sus propios datos y los revierte, así que no dependen del seed. En GitHub Actions corren sobre el servicio `postgres:16` del workflow; en local, sobre la base de `docker compose`.
+
 ### Variables de entorno
 
 | Variable | Descripción |
