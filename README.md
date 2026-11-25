@@ -397,8 +397,25 @@ La API está desplegada en AWS en `https://3-85-201-152.sslip.io/api/v1`.
 | Red | La base solo acepta conexiones desde el grupo de seguridad del servidor |
 | HTTPS | Caddy como proxy inverso delante de Spring Boot, con certificado de Let's Encrypt |
 | Configuración | Variables de entorno en el servidor, fuera del repositorio |
+| Acceso al servidor | Sin SSH desde internet: terminal por AWS Systems Manager o EC2 Instance Connect |
 
 Prueba rápida: `GET https://3-85-201-152.sslip.io/api/v1/districts`
+
+### Despliegue continuo
+
+Cada push a `main` que pasa el CI se despliega solo (`.github/workflows/deploy.yml`):
+
+1. GitHub Actions corre las pruebas (unitarias y de integración contra PostgreSQL real).
+2. El job de despliegue pide a AWS una **credencial temporal por OIDC**: no hay llaves de AWS guardadas en GitHub. El rol solo puede subir a `releases/` del bucket y ordenar comandos a esta instancia, y solo lo puede asumir el entorno `production` de este repositorio.
+3. El jar se guarda en S3 con el hash del commit, así cada versión desplegada es trazable y se puede volver a ella.
+4. **AWS Systems Manager** ejecuta `scripts/deploy-remote.sh` en el servidor, sin puerto 22 abierto:
+   respalda la base con `pg_dump`, cambia el jar, reinicia el servicio y prueba la salud durante 3 minutos.
+   Si la prueba falla, vuelve solo al jar anterior y el workflow termina en rojo.
+5. El workflow comprueba la API pública por HTTPS.
+
+Las migraciones de Flyway no se deshacen, así que se escriben compatibles hacia atrás (solo agregan tablas o columnas): el jar anterior sigue funcionando con la base ya migrada. Antes de una migración con riesgo se ensaya sobre una copia del respaldo de producción.
+
+Políticas de IAM en `infra/aws/`.
 
 ---
 
