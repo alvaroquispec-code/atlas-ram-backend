@@ -55,18 +55,62 @@ class WiscaCalculatorTest {
     }
 
     @Test
-    void unGermenSinPruebasCuentaComoNoCubiertoYSeInforma() {
+    void unResistenteEsperadoDeEucastCuentaComoNoCubiertoYNoComoSinDatos() {
         List<WiscaCalculator.IsolateProfile> data = new ArrayList<>();
         data.addAll(isolates(1L, "eco", "Escherichia coli", 200, Map.of("CRO", SUSCEPTIBLE)));
-        // A P. aeruginosa no se le prueba ceftriaxona (resistencia intrínseca).
+        // A P. aeruginosa no se le prueba ceftriaxona: es un fenotipo resistente esperado (EUCAST ERP v1.2).
         data.addAll(isolates(3L, "pae", "Pseudomonas aeruginosa", 200, Map.of("MEM", SUSCEPTIBLE)));
 
         WiscaCalculator.RegimenResult cro = WiscaCalculator.compute(data, List.of(List.of("CRO")), 90, DRAWS, 1L)
                 .regimens().get(0);
 
         assertThat(cro.median()).isCloseTo(50.0, within(2.0));
-        assertThat(cro.untestedPathogens()).containsExactly("Pseudomonas aeruginosa");
-        assertThat(cro.untestedFrequency()).isCloseTo(50.0, within(0.5));
+        assertThat(cro.expectedResistantPathogens()).containsExactly("Pseudomonas aeruginosa");
+        assertThat(cro.untestedPathogens()).isEmpty();
+        assertThat(cro.untestedFrequency()).isZero();
+    }
+
+    @Test
+    void unSensibleEsperadoDeEucastCuentaComoCubierto() {
+        List<WiscaCalculator.IsolateProfile> data = new ArrayList<>();
+        data.addAll(isolates(1L, "eco", "Escherichia coli", 200, Map.of("MEM", SUSCEPTIBLE)));
+        // A S. pneumoniae no se le prueba meropenem: es un fenotipo sensible esperado (EUCAST ESP v1.1, regla 2.4).
+        data.addAll(isolates(7L, "spn", "Streptococcus pneumoniae", 200, Map.of("CRO", SUSCEPTIBLE)));
+
+        WiscaCalculator.RegimenResult mem = WiscaCalculator.compute(data, List.of(List.of("MEM")), 90, DRAWS, 1L)
+                .regimens().get(0);
+
+        assertThat(mem.median()).isGreaterThan(98.0);
+        assertThat(mem.expectedSusceptiblePathogens()).containsExactly("Streptococcus pneumoniae");
+        assertThat(mem.untestedPathogens()).isEmpty();
+    }
+
+    @Test
+    void unGermenSinPruebasNiFenotipoEsperadoQuedaSinDatosYCuentaComoNoCubierto() {
+        List<WiscaCalculator.IsolateProfile> data = new ArrayList<>();
+        data.addAll(isolates(1L, "eco", "Escherichia coli", 200, Map.of("MEM", SUSCEPTIBLE)));
+        // Salmonella enterica frente a meropenem: EUCAST solo da sensible esperado a Salmonella Typhi.
+        data.addAll(isolates(8L, "sal", "Salmonella enterica", 200, Map.of("CIP", SUSCEPTIBLE)));
+
+        WiscaCalculator.RegimenResult mem = WiscaCalculator.compute(data, List.of(List.of("MEM")), 90, DRAWS, 1L)
+                .regimens().get(0);
+
+        assertThat(mem.median()).isCloseTo(50.0, within(2.0));
+        assertThat(mem.untestedPathogens()).containsExactly("Salmonella enterica");
+        assertThat(mem.untestedFrequency()).isCloseTo(50.0, within(0.5));
+    }
+
+    @Test
+    void unResultadoMedidoNoSeSobrescribeConElFenotipoEsperado() {
+        // Un S. pneumoniae informado resistente a meropenem es inusual, pero manda lo medido.
+        List<WiscaCalculator.IsolateProfile> data =
+                new ArrayList<>(isolates(7L, "spn", "Streptococcus pneumoniae", 100, Map.of("MEM", RESISTANT)));
+
+        WiscaCalculator.RegimenResult mem = WiscaCalculator.compute(data, List.of(List.of("MEM")), 90, DRAWS, 1L)
+                .regimens().get(0);
+
+        assertThat(mem.median()).isLessThan(5.0);
+        assertThat(mem.expectedSusceptiblePathogens()).isEmpty();
     }
 
     @Test

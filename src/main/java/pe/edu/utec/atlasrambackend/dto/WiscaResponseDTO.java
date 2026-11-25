@@ -37,9 +37,14 @@ public record WiscaResponseDTO(
             double probabilityAboveTarget,
             /** P(este régimen es el de mayor cobertura entre los comparados). */
             double probabilityBest,
-            /** Frecuencia de los gérmenes sin pruebas para el régimen (contados como no cubiertos). */
+            /** Frecuencia de los gérmenes sin datos para el régimen (contados como no cubiertos). */
             double untestedFrequency,
+            /** Sin pruebas y sin fenotipo esperado de EUCAST: se cuentan como no cubiertos. */
             List<String> untestedPathogens,
+            /** Sin pruebas, pero sensibles esperados según EUCAST: se cuentan como cubiertos. */
+            List<String> expectedSusceptiblePathogens,
+            /** Sin pruebas, pero resistentes esperados según EUCAST (antes "resistencia intrínseca"). */
+            List<String> expectedResistantPathogens,
             List<PathogenCoverage> byPathogen
     ) {}
 
