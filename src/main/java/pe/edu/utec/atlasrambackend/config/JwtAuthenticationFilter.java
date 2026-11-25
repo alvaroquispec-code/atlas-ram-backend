@@ -10,9 +10,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import pe.edu.utec.atlasrambackend.model.User;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -21,10 +23,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final SecurityExceptionHandler securityExceptionHandler;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   UserRepository userRepository,
+                                   SecurityExceptionHandler securityExceptionHandler) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.securityExceptionHandler = securityExceptionHandler;
     }
 
     @Override
@@ -33,6 +39,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return "/auth/login".equals(path) || "/auth/refresh".equals(path);
     }
 
+    /**
+     * Sin encabezado Authorization la petición sigue como anónima (los endpoints públicos responden).
+     * Con un token presentado, este debe ser válido: si está mal firmado, venció o su sesión fue revocada,
+     * se responde 401 aunque el endpoint sea público. Así el cliente se entera en su siguiente petición,
+     * sea cual sea, intenta renovar y, si la sesión fue cerrada, vuelve al login.
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -44,25 +56,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        jwtService.parseAccessToken(header.substring(BEARER_PREFIX.length()))
-                .ifPresent(subject -> authenticate(request, subject));
+        Optional<User> user = jwtService.parseAccessToken(header.substring(BEARER_PREFIX.length()))
+                .flatMap(subject -> userRepository.findByEmail(subject.email())
+                        .filter(u -> u.isActive() && u.getTokenVersion() == subject.version()));
+        if (user.isEmpty()) {
+            securityExceptionHandler.rejectToken(request, response);
+            return;
+        }
+        UserDetails userDetails = CustomUserDetailsService.toUserDetails(user.get());
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * Autentica solo si el usuario existe, está activo y el token se emitió con su versión de sesión
-     * vigente; si no, la petición sigue como anónima y la regla de autorización responde 401.
-     */
-    private void authenticate(HttpServletRequest request, JwtService.TokenSubject subject) {
-        userRepository.findByEmail(subject.email())
-                .filter(user -> user.isActive() && user.getTokenVersion() == subject.version())
-                .ifPresent(user -> {
-                    UserDetails userDetails = CustomUserDetailsService.toUserDetails(user);
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                });
     }
 }

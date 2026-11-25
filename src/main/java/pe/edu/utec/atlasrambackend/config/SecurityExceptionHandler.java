@@ -41,6 +41,12 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
                 "Su rol no tiene permiso para esta operación");
     }
 
+    /** 401 para un token presentado pero inválido, vencido o revocado (lo usa el filtro JWT). */
+    public void rejectToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        write(request, response, HttpStatus.UNAUTHORIZED,
+                "El token de acceso es inválido, venció o la sesión fue cerrada");
+    }
+
     private void write(HttpServletRequest request,
                        HttpServletResponse response,
                        HttpStatus status,
