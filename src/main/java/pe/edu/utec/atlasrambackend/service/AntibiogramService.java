@@ -185,11 +185,53 @@ public class AntibiogramService {
     }
 
     private static Optional<Interpretation> classify(AntibiogramQueries.SiteResultRow result, Breakpoint bp) {
-        Optional<Interpretation> byMic = result.micValue() == null ? Optional.empty()
-                : InterpretationService.classify(new ParsedMic(
-                        result.micQualifier() == null ? MicQualifier.EQ : result.micQualifier(), result.micValue()), bp);
-        return byMic.or(() -> result.diskMm() == null ? Optional.empty()
-                : InterpretationService.classifyDisk(result.diskMm(), bp));
+        return classify(result.micValue(), result.micQualifier(), result.diskMm(), bp);
+    }
+
+    /** Mismo criterio que al cargar: primero la CIM y, si no es concluyente, el halo. */
+    private static Optional<Interpretation> classify(java.math.BigDecimal mic, MicQualifier qualifier, Integer diskMm,
+                                                     Breakpoint bp) {
+        Optional<Interpretation> byMic = mic == null ? Optional.empty()
+                : InterpretationService.classify(new ParsedMic(qualifier == null ? MicQualifier.EQ : qualifier, mic), bp);
+        return byMic.or(() -> diskMm == null ? Optional.empty() : InterpretationService.classifyDisk(diskMm, bp));
+    }
+
+    /** Conteos de una clave (distrito o periodo) tras clasificar cada CIM con un punto de corte. */
+    record Counts(long tested, long susceptible, long resistant) {
+    }
+
+    /**
+     * Punto de corte del sitio pedido si el par tiene puntos de corte por sitio en la edición activa (por
+     * defecto, no meningitis); vacío si el par no depende del sitio.
+     */
+    private Optional<Breakpoint> siteBreakpoint(Long microorganismId, Long antibioticId, BreakpointSite site) {
+        List<Breakpoint> bySite = breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+                        microorganismId, antibioticId, standard, version).stream()
+                .filter(b -> b.getSite() != BreakpointSite.ANY)
+                .toList();
+        if (bySite.isEmpty()) {
+            return Optional.empty();
+        }
+        BreakpointSite wanted = site == null || site == BreakpointSite.ANY ? BreakpointSite.NON_MENINGITIS : site;
+        return bySite.stream().filter(b -> b.getSite() == wanted).findFirst().or(() -> bySite.stream().findFirst());
+    }
+
+    /** Clasifica cada CIM (o halo) con el punto de corte; las que cruzan categorías no se cuentan. */
+    static <K> Map<K, Counts> classifyByKey(List<AntibiogramQueries.KeyedResult<K>> results, Breakpoint bp) {
+        Map<K, long[]> acc = new java.util.HashMap<>();
+        for (AntibiogramQueries.KeyedResult<K> r : results) {
+            Optional<Interpretation> category = classify(r.micValue(), r.micQualifier(), r.diskMm(), bp);
+            if (category.isEmpty()) {
+                continue;
+            }
+            long[] c = acc.computeIfAbsent(r.key(), k -> new long[3]);
+            c[0]++;
+            if (category.get() == Interpretation.SUSCEPTIBLE) c[1]++;
+            if (category.get() == Interpretation.RESISTANT) c[2]++;
+        }
+        Map<K, Counts> out = new java.util.HashMap<>();
+        acc.forEach((k, c) -> out.put(k, new Counts(c[0], c[1], c[2])));
+        return out;
     }
 
     private static String label(BreakpointSite site) {
@@ -207,6 +249,20 @@ public class AntibiogramService {
                                                                    LocalDate from,
                                                                    LocalDate to,
                                                                    DataOrigin origin) {
+        return calculateByDistrict(microorganismId, antibioticId, from, to, origin, null);
+    }
+
+    /**
+     * site solo cuenta en los pares con punto de corte por sitio: la CIM de cada primer aislamiento se
+     * clasifica con el de ese sitio (por defecto, no meningitis) en vez de mezclar las dos lecturas.
+     */
+    @Transactional(readOnly = true)
+    public List<DistrictResistanceResponseDTO> calculateByDistrict(Long microorganismId,
+                                                                   Long antibioticId,
+                                                                   LocalDate from,
+                                                                   LocalDate to,
+                                                                   DataOrigin origin,
+                                                                   BreakpointSite site) {
         validateRange(from, to);
         if (!microorganismRepository.existsById(microorganismId)) {
             throw new ResourceNotFoundException("Microorganismo", microorganismId);
@@ -214,11 +270,17 @@ public class AntibiogramService {
         if (!antibioticRepository.existsById(antibioticId)) {
             throw new ResourceNotFoundException("Antibiótico", antibioticId);
         }
-        Map<Long, AntibiogramQueries.DistrictRow> rows = antibiogramQueries
-                .byDistrict(microorganismId, antibioticId, from, to, origin).stream()
-                .collect(Collectors.toMap(AntibiogramQueries.DistrictRow::districtId, Function.identity()));
+        Optional<Breakpoint> siteBreakpoint = siteBreakpoint(microorganismId, antibioticId, site);
+        Map<Long, AntibiogramQueries.DistrictRow> rows = siteBreakpoint
+                .map(bp -> classifyByKey(antibiogramQueries.districtResults(microorganismId, antibioticId, from, to,
+                        origin), bp).entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, e -> new AntibiogramQueries.DistrictRow(
+                                e.getKey(), e.getValue().tested(), e.getValue().susceptible(), e.getValue().resistant()))))
+                .orElseGet(() -> antibiogramQueries.byDistrict(microorganismId, antibioticId, from, to, origin).stream()
+                        .collect(Collectors.toMap(AntibiogramQueries.DistrictRow::districtId, Function.identity())));
+        BreakpointSite used = siteBreakpoint.map(Breakpoint::getSite).orElse(null);
         return districtRepository.findAll(Sort.by("ubigeo")).stream()
-                .map(district -> toResponse(district, rows.get(district.getId())))
+                .map(district -> toResponse(district, rows.get(district.getId()), used))
                 .toList();
     }
 
@@ -283,6 +345,14 @@ public class AntibiogramService {
     @Transactional(readOnly = true)
     public TrendResponseDTO trend(Long microorganismId, Long antibioticId, Long districtId, Long facilityId,
                                   LocalDate from, LocalDate to, TrendInterval interval, DataOrigin origin) {
+        return trend(microorganismId, antibioticId, districtId, facilityId, from, to, interval, origin, null);
+    }
+
+    /** site: ver calculateByDistrict. */
+    @Transactional(readOnly = true)
+    public TrendResponseDTO trend(Long microorganismId, Long antibioticId, Long districtId, Long facilityId,
+                                  LocalDate from, LocalDate to, TrendInterval interval, DataOrigin origin,
+                                  BreakpointSite site) {
         validateRange(from, to);
         if (from.plusYears(MAX_TREND_YEARS).isBefore(to)) {
             throw new BusinessRuleException("El periodo de la tendencia no puede superar " + MAX_TREND_YEARS + " años");
@@ -292,10 +362,16 @@ public class AntibiogramService {
         var antibiotic = antibioticRepository.findById(antibioticId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antibiótico", antibioticId));
 
-        Map<LocalDate, AntibiogramQueries.PeriodRow> rows = antibiogramQueries
-                .trend(microorganismId, antibioticId, districtId, facilityId == null ? null : List.of(facilityId),
-                        from, to, interval.sqlUnit, origin).stream()
-                .collect(Collectors.toMap(AntibiogramQueries.PeriodRow::period, Function.identity()));
+        List<Long> facilities = facilityId == null ? null : List.of(facilityId);
+        Optional<Breakpoint> siteBreakpoint = siteBreakpoint(microorganismId, antibioticId, site);
+        Map<LocalDate, AntibiogramQueries.PeriodRow> rows = siteBreakpoint
+                .map(bp -> classifyByKey(antibiogramQueries.trendResults(microorganismId, antibioticId, districtId,
+                        facilities, from, to, interval.sqlUnit, origin), bp).entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, e -> new AntibiogramQueries.PeriodRow(
+                                e.getKey(), e.getValue().tested(), e.getValue().susceptible(), e.getValue().resistant()))))
+                .orElseGet(() -> antibiogramQueries.trend(microorganismId, antibioticId, districtId, facilities,
+                                from, to, interval.sqlUnit, origin).stream()
+                        .collect(Collectors.toMap(AntibiogramQueries.PeriodRow::period, Function.identity())));
 
         List<TrendResponseDTO.Point> points = new java.util.ArrayList<>();
         List<CochranArmitage.Point> testPoints = new java.util.ArrayList<>();
@@ -318,7 +394,8 @@ public class AntibiogramService {
         return new TrendResponseDTO(microorganismId,
                 species == null ? microorganism.getGenus() : microorganism.getGenus() + " " + species,
                 antibioticId, antibiotic.getName(), interval.name(), points,
-                toTrend(CochranArmitage.test(testPoints), interval));
+                toTrend(CochranArmitage.test(testPoints), interval),
+                siteBreakpoint.map(Breakpoint::getSite).orElse(null));
     }
 
     static TrendResponseDTO.Trend toTrend(CochranArmitage.Result r, TrendInterval interval) {
@@ -330,7 +407,8 @@ public class AntibiogramService {
                 r.periods(), r.totalTrials());
     }
 
-    private DistrictResistanceResponseDTO toResponse(District district, AntibiogramQueries.DistrictRow row) {
+    private DistrictResistanceResponseDTO toResponse(District district, AntibiogramQueries.DistrictRow row,
+                                                     BreakpointSite site) {
         long total = row == null ? 0 : row.tested();
         long resistant = row == null ? 0 : row.resistant();
         boolean sufficient = total >= MIN_RESULTS;
@@ -340,7 +418,8 @@ public class AntibiogramService {
                 sufficient ? Proportions.percentage(resistant, total) : null,
                 sufficient,
                 sufficient ? ci.low() : null,
-                sufficient ? ci.high() : null);
+                sufficient ? ci.high() : null,
+                site);
     }
 
     private void validateRange(LocalDate from, LocalDate to) {

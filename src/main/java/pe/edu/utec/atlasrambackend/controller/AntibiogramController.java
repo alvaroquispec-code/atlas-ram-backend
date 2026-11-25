@@ -14,6 +14,7 @@ import pe.edu.utec.atlasrambackend.dto.WiscaResponseDTO;
 import pe.edu.utec.atlasrambackend.service.AntibiogramService;
 import pe.edu.utec.atlasrambackend.wisca.Syndrome;
 import pe.edu.utec.atlasrambackend.wisca.WiscaService;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 import java.time.LocalDate;
@@ -76,9 +77,10 @@ public class AntibiogramController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "MONTH") AntibiogramService.TrendInterval interval,
-            @RequestParam(required = false) DataOrigin origin) {
+            @RequestParam(required = false) DataOrigin origin,
+            @RequestParam(required = false) BreakpointSite site) {
         return ResponseEntity.ok(antibiogramService.trend(
-                microorganismId, antibioticId, districtId, facilityId, from, to, interval, origin));
+                microorganismId, antibioticId, districtId, facilityId, from, to, interval, origin, site));
     }
 
     /**
@@ -110,8 +112,9 @@ public class AntibiogramController {
             @RequestParam Long antibioticId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) DataOrigin origin) {
+            @RequestParam(required = false) DataOrigin origin,
+            @RequestParam(required = false) BreakpointSite site) {
         return ResponseEntity.ok(
-                antibiogramService.calculateByDistrict(microorganismId, antibioticId, from, to, origin));
+                antibiogramService.calculateByDistrict(microorganismId, antibioticId, from, to, origin, site));
     }
 }

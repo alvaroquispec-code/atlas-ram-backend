@@ -136,4 +136,19 @@ class AntibiogramServiceTest {
 
         assertThat(filas).extracting(AntibiogramQueries.Row::antibioticName).containsExactly("Ceftriaxona (no meningitis)");
     }
+
+    @Test
+    void elMapaYLaTendenciaClasificanCadaCimConElPuntoDeCorteDelSitioElegido() {
+        var resultados = List.of(
+                new AntibiogramQueries.KeyedResult<>(1L, new BigDecimal("1"), null, null),
+                new AntibiogramQueries.KeyedResult<>(1L, new BigDecimal("2"), null, null),
+                new AntibiogramQueries.KeyedResult<>(2L, new BigDecimal("0.25"), null, null));
+
+        var meningitis = AntibiogramService.classifyByKey(resultados, ceftriaxone(BreakpointSite.MENINGITIS, 0.5, 2));
+        var otras = AntibiogramService.classifyByKey(resultados, ceftriaxone(BreakpointSite.NON_MENINGITIS, 1, 4));
+
+        assertThat(meningitis.get(1L)).isEqualTo(new AntibiogramService.Counts(2, 0, 1)); // 1 → I, 2 → R
+        assertThat(otras.get(1L)).isEqualTo(new AntibiogramService.Counts(2, 1, 0));      // 1 → S, 2 → I
+        assertThat(otras.get(2L)).isEqualTo(new AntibiogramService.Counts(1, 1, 0));
+    }
 }

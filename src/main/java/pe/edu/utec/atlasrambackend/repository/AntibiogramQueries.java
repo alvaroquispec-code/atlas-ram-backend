@@ -116,6 +116,26 @@ public class AntibiogramQueries {
     public record PeriodRow(LocalDate period, long tested, long susceptible, long resistant) {
     }
 
+    /** CIM y halo de un primer aislamiento, con la clave por la que se agrupa (distrito o periodo). */
+    public record KeyedResult<K>(K key, BigDecimal micValue, MicQualifier micQualifier, Integer diskMm) {
+    }
+
+    /** Como BY_DISTRICT, pero con la CIM de cada primer aislamiento para clasificarla con otro punto de corte. */
+    private static final String DISTRICT_RESULTS = RANKED_ISOLATES + """
+            select x.district_id as key, r.mic_value, r.mic_qualifier, r.disk_diffusion_mm
+            from ranked x
+            join susceptibility_result r on r.isolate_id = x.id and r.antibiotic_id = :antibioticId
+            where x.district_id is not null and x.rn = 1
+            """;
+
+    /** Como TREND, pero con la CIM de cada primer aislamiento del periodo. */
+    private static final String TREND_RESULTS = TREND.substring(0, TREND.indexOf("select x.period,")) + """
+            select x.period as key, r.mic_value, r.mic_qualifier, r.disk_diffusion_mm
+            from ranked x
+            join susceptibility_result r on r.isolate_id = x.id and r.antibiotic_id = :antibioticId
+            where x.rn = 1
+            """;
+
     /** Perfil completo de cada primer aislamiento de un tipo de muestra: insumo del WISCA. */
     private static final String PROFILES = RANKED_ISOLATES + """
             select x.id as isolate_id, x.microorganism_id, m.code as microorganism_code, m.genus, m.species,
@@ -220,6 +240,29 @@ public class AntibiogramQueries {
                     species == null ? rs.getString("genus") : rs.getString("genus") + " " + species,
                     rs.getString("antibiotic_code"), rs.getString("interpretation"));
         });
+    }
+
+    public List<KeyedResult<Long>> districtResults(Long microorganismId, Long antibioticId, LocalDate from,
+                                                   LocalDate to, DataOrigin origin) {
+        MapSqlParameterSource params = params(microorganismId, null, null, from, to, origin)
+                .addValue("antibioticId", antibioticId);
+        return jdbc.query(DISTRICT_RESULTS, params, (rs, i) -> keyed(rs, rs.getLong("key")));
+    }
+
+    public List<KeyedResult<LocalDate>> trendResults(Long microorganismId, Long antibioticId, Long districtId,
+                                                     Collection<Long> facilityIds, LocalDate from, LocalDate to,
+                                                     String unit, DataOrigin origin) {
+        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to, origin)
+                .addValue("antibioticId", antibioticId)
+                .addValue("unit", unit);
+        return jdbc.query(TREND_RESULTS, params, (rs, i) -> keyed(rs, rs.getObject("key", LocalDate.class)));
+    }
+
+    private static <K> KeyedResult<K> keyed(ResultSet rs, K key) throws SQLException {
+        String qualifier = rs.getString("mic_qualifier");
+        return new KeyedResult<>(key, rs.getBigDecimal("mic_value"),
+                qualifier == null ? null : MicQualifier.valueOf(qualifier),
+                rs.getObject("disk_diffusion_mm", Integer.class));
     }
 
     /** unit: "month" o "quarter" (argumento de date_trunc). facilityIds null = todos. */

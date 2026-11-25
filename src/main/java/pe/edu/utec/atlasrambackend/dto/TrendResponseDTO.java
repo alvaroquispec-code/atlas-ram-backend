@@ -1,5 +1,7 @@
 package pe.edu.utec.atlasrambackend.dto;
 
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,7 +17,9 @@ public record TrendResponseDTO(
         String interval,
         List<Point> points,
         /** Null si hay menos de dos periodos con datos o la resistencia es 0 % o 100 % en todos. */
-        Trend trend
+        Trend trend,
+        /** Punto de corte por sitio usado (solo pares como S. pneumoniae × ceftriaxona); null en el resto. */
+        BreakpointSite breakpointSite
 ) {
     public record Point(
             LocalDate periodStart,
