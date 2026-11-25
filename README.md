@@ -399,7 +399,7 @@ La API está desplegada en AWS en `https://3-85-201-152.sslip.io/api/v1`.
 | Red | La base solo acepta conexiones desde el grupo de seguridad del servidor |
 | HTTPS | Caddy como proxy inverso delante de Spring Boot, con certificado de Let's Encrypt |
 | Configuración | Variables de entorno en el servidor, fuera del repositorio |
-| Acceso al servidor | Sin SSH desde internet: terminal por AWS Systems Manager o EC2 Instance Connect |
+| Acceso al servidor | Sin SSH desde internet (solo puertos 80 y 443 abiertos): terminal por AWS Systems Manager (Session Manager) |
 
 Prueba rápida: `GET https://3-85-201-152.sslip.io/api/v1/districts`
 
@@ -454,7 +454,7 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 
   Corren sobre un PostgreSQL 16 desechable que levanta **Testcontainers** (Docker tiene que estar encendido), al que Flyway le aplica todas las migraciones desde cero. Así las pruebas nunca tocan la base de desarrollo y el CI prueba en cada push que un despliegue limpio funcione.
 
-**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`. Contra `localhost` usa la contraseña del seed; contra cualquier otro servidor la toma de la variable de entorno `ATLAS_SMOKE_PASSWORD` o la pide por teclado sin mostrarla, para que ninguna contraseña real quede escrita en el repositorio.
+**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario, normas, puntos de corte por sitio y estratificación por UCI) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`. Contra `localhost` usa la contraseña del seed; contra cualquier otro servidor la toma de la variable de entorno `ATLAS_SMOKE_PASSWORD` o la pide por teclado sin mostrarla, para que ninguna contraseña real quede escrita en el repositorio.
 
 ### Variables de entorno
 

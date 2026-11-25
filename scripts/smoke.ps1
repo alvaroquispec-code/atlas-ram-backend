@@ -4,7 +4,8 @@
 
 .DESCRIPTION
   Sirve para comprobar en segundos que un despliegue (local o AWS) funciona de punta a punta: autenticación,
-  consultas SQL del antibiograma, tendencia, WISCA, alertas, cargas e inventario. No modifica datos.
+  consultas SQL del antibiograma, tendencia, WISCA, alertas, cargas, inventario, normas, puntos de corte por
+  sitio de infección y estratificación por servicio (UCI). No modifica datos.
   Sale con código 1 si algo falla, así también se puede usar en un pipeline.
 
 .EXAMPLE
@@ -77,6 +78,17 @@ Check "Aislamientos paginados" { & $get "/isolates?size=5" } { param($r) $r.cont
 Check "Cargas activas" { & $get "/uploads/active" } { param($r) $true }
 Check "Inventario (tablero)" { & $get "/logistics/facilities/$FacilityId/stock" } { param($r) $null -ne $r.itemCount }
 Check "Inventario (DDD)" { & $get "/logistics/facilities/$FacilityId/ddd?from=2026-05-01&to=2026-10-31" } { param($r) $null -ne $r.totalDdd }
+
+# Normas, puntos de corte por sitio (S. pneumoniae × ceftriaxona) y estratificación por servicio (UCI).
+$spn = ((& $get "/microorganisms?size=100").content | Where-Object { $_.code -eq "spn" }).id
+$cro = ((& $get "/antibiotics?size=100").content | Where-Object { $_.code -eq "CRO" }).id
+Check "Normas (CLSI M100 / M39 / EUCAST)" { & $get "/standards" } { param($r) $r.breakpoints -like "CLSI M100*" }
+Check "Ediciones de puntos de corte" { & $get "/breakpoints/editions" } { param($r) @($r | Where-Object { $_.active }).Count -eq 1 }
+Check "Antibiograma con criterio por sitio" { & $get "/antibiogram?microorganismId=$spn&from=$from&to=$to" } { param($r) @($r | Where-Object { $_.breakpointSite }).Count -eq 2 }
+Check "Mapa con criterio meníngeo" { & $get "/antibiogram/by-district?microorganismId=$spn&antibioticId=$cro&from=2024-09-01&to=$to&site=MENINGITIS" } { param($r) $r[0].breakpointSite -eq "MENINGITIS" }
+Check "Antibiograma de UCI" { & $get "/antibiogram?microorganismId=2&from=$from&to=$to&ward=ICU&includeInsufficient=true" } { param($r) $r.Count -gt 0 }
+Check "WISCA bacteriemia en UCI" { & $get "/antibiogram/wisca?syndrome=BACTEREMIA&from=$from&to=$to&ward=ICU" } { param($r) $r.isolates -gt 0 }
+Check "Sesión vigente (/auth/me)" { & $get "/auth/me" } { param($r) $r.email -eq $Email }
 
 if ($failures -gt 0) {
     Write-Host "$failures verificación(es) fallaron." -ForegroundColor Red
