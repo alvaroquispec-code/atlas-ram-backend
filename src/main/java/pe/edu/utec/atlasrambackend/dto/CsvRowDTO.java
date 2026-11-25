@@ -17,5 +17,7 @@ public record CsvRowDTO(
         String micValue,
         String reportedInterpretation,
         String patientId,
-        String labIsolateId
+        String labIsolateId,
+        /** Diámetro del halo en mm (difusión en disco); vacío si no se informó. */
+        String diskMm
 ) {}

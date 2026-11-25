@@ -125,4 +125,62 @@ class InterpretationServiceTest {
         assertThat(service.resolve(mic("<=4"), null, ecoli, meropenem)).isEmpty();
         assertThat(service.resolve(null, null, ecoli, meropenem)).isEmpty();
     }
+
+    /** Valores de disco ilustrativos para la prueba (no son de una tabla vigente): S ≥ 21 mm, R ≤ 15 mm. */
+    private static Breakpoint withDisk() {
+        Breakpoint bp = meropenemEcoli();
+        bp.setDiskSusceptibleMin(21);
+        bp.setDiskResistantMax(15);
+        return bp;
+    }
+
+    @ParameterizedTest(name = "halo {0} mm → {1}")
+    @CsvSource({
+            "30, SUSCEPTIBLE",
+            "21, SUSCEPTIBLE",
+            "20, INTERMEDIATE",
+            "16, INTERMEDIATE",
+            "15, RESISTANT",
+            "6,  RESISTANT",
+    })
+    void elHaloSeInterpretaAlRevesQueLaCim(int mm, Interpretation expected) {
+        assertThat(InterpretationService.classifyDisk(mm, withDisk())).contains(expected);
+    }
+
+    @Test
+    void sinValoresDeDiscoNoSeAdivina() {
+        assertThat(InterpretationService.classifyDisk(25, meropenemEcoli())).isEmpty();
+        Breakpoint onlyResistant = meropenemEcoli();
+        onlyResistant.setDiskResistantMax(15);
+        assertThat(InterpretationService.classifyDisk(10, onlyResistant)).contains(Interpretation.RESISTANT);
+        assertThat(InterpretationService.classifyDisk(18, onlyResistant)).isEmpty();
+    }
+
+    @Test
+    void sinCimConcluyenteSeUsaElHaloYQuedaSellado() {
+        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(Optional.of(withDisk()));
+
+        var soloHalo = service.resolve(null, 24, null, ecoli, meropenem).orElseThrow();
+        assertThat(soloHalo.interpretation()).isEqualTo(Interpretation.SUSCEPTIBLE);
+        assertThat(soloHalo.source()).isEqualTo(InterpretationSource.CALCULATED);
+        assertThat(soloHalo.breakpointVersion()).isEqualTo("2024");
+
+        // "≤ 4" no es concluyente con la CIM; el halo de 12 mm sí: resistente.
+        var cimNoConcluyente = service.resolve(mic("<=4"), 12, null, ecoli, meropenem).orElseThrow();
+        assertThat(cimNoConcluyente.interpretation()).isEqualTo(Interpretation.RESISTANT);
+
+        // Si la CIM es concluyente, manda la CIM aunque el halo diga otra cosa.
+        var cimManda = service.resolve(mic("0.5"), 12, null, ecoli, meropenem).orElseThrow();
+        assertThat(cimManda.interpretation()).isEqualTo(Interpretation.SUSCEPTIBLE);
+    }
+
+    @Test
+    void unPuntoDeCorteSoloDeDiscoNoClasificaCim() {
+        Breakpoint diskOnly = new Breakpoint();
+        diskOnly.setDiskSusceptibleMin(21);
+        diskOnly.setDiskResistantMax(15);
+        assertThat(InterpretationService.classify(mic("0.5"), diskOnly)).isEmpty();
+        assertThat(InterpretationService.classifyDisk(22, diskOnly)).contains(Interpretation.SUSCEPTIBLE);
+    }
 }

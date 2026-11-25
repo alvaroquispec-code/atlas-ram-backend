@@ -21,8 +21,9 @@ import java.util.regex.Pattern;
  *
  * <p>Columnas de antibiótico: código de 3 letras, guion bajo, una letra de la guía, una del método y, en los
  * discos, la carga: {@code MEM_NM}, {@code CIP_EE}, {@code AMP_ND10}. Método M (CIM) y E (gradiente, que
- * también da una CIM) → se lee como CIM; D (disco) → solo se acepta si trae S, I o R, porque Atlas RAM aún
- * no interpreta diámetros. Si un antibiótico tiene CIM y disco, manda la CIM.</p>
+ * también da una CIM) → se lee como CIM; D (disco) → diámetro del halo en mm, que se interpreta con el
+ * punto de corte de disco. Si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa
+ * primero la CIM. En cualquier columna se acepta también una interpretación ya hecha (S, I o R).</p>
  *
  * <p>Las columnas de datos del aislamiento se reconocen por varios nombres (técnicos, en inglés y en
  * español), porque cada laboratorio configura su exportación. Agregar un nombre nuevo es una línea en ALIASES.</p>
@@ -109,21 +110,23 @@ final class WhonetFormat {
             String sex = get(record, fields, Field.SEX);
 
             for (Map.Entry<String, AntibioticColumns> entry : antibiotics.entrySet()) {
-                Picked value = entry.getValue().pick(record);
-                if (value == null) {
+                String mic = entry.getValue().first(record, entry.getValue().mic);
+                String disk = entry.getValue().first(record, entry.getValue().disk);
+                if (mic.isEmpty() && disk.isEmpty()) {
                     continue;
                 }
-                String upper = value.text().toUpperCase(Locale.ROOT);
-                boolean interpretation = INTERPRETATIONS.contains(upper);
-                if (value.disk() && !interpretation) {
-                    malformed.add("Línea " + record.line() + ": " + value.column()
-                            + " = " + value.text() + " es un diámetro de disco; Atlas RAM aún no interpreta"
-                            + " discos (envíe la CIM o la interpretación S/I/R)");
-                    continue;
+                // Una columna puede traer la interpretación en vez del número (S, I, R).
+                String reported = "";
+                if (isInterpretation(mic)) {
+                    reported = mic;
+                    mic = "";
+                }
+                if (isInterpretation(disk)) {
+                    reported = reported.isEmpty() ? disk : reported;
+                    disk = "";
                 }
                 rows.add(new CsvRowDTO(record.line(), date, specimen, age, sex, "", "", organism, entry.getKey(),
-                        interpretation ? "" : value.text(), interpretation ? value.text() : "",
-                        patient, labIsolateId));
+                        mic, reported, patient, labIsolateId, disk));
             }
         }
         return new CsvParser.Result(rows, malformed);
@@ -132,28 +135,24 @@ final class WhonetFormat {
     private record Column(int index, String name) {
     }
 
-    private record Picked(String column, String text, boolean disk) {
+    private static boolean isInterpretation(String value) {
+        return INTERPRETATIONS.contains(value.toUpperCase(Locale.ROOT));
     }
 
-    /** Las columnas de un mismo antibiótico: primero las de CIM, luego las de disco. */
+    /** Las columnas de un mismo antibiótico, separadas por método (CIM y disco). */
     private static final class AntibioticColumns {
         final List<Column> mic = new ArrayList<>();
         final List<Column> disk = new ArrayList<>();
 
-        Picked pick(CsvParser.CsvRecord record) {
-            for (Column c : mic) {
+        /** El primer valor no vacío de esas columnas (o vacío). */
+        String first(CsvParser.CsvRecord record, List<Column> columns) {
+            for (Column c : columns) {
                 String v = record.fields().get(c.index()).trim();
                 if (!v.isEmpty()) {
-                    return new Picked(c.name(), v, false);
+                    return v;
                 }
             }
-            for (Column c : disk) {
-                String v = record.fields().get(c.index()).trim();
-                if (!v.isEmpty()) {
-                    return new Picked(c.name(), v, true);
-                }
-            }
-            return null;
+            return "";
         }
     }
 

@@ -14,7 +14,8 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 /**
- * Interpreta una CIM contra el punto de corte vigente y deja registrado de dónde salió la interpretación.
+ * Interpreta una CIM (o, si no hay CIM concluyente, un halo de disco) contra el punto de corte vigente y
+ * deja registrado de dónde salió la interpretación.
  *
  * Con calificador, la CIM real es un rango, no un número. Solo se asigna una categoría cuando todo el
  * rango cae dentro de ella; si el rango cruza categorías, no se adivina. Como las diluciones son dobles
@@ -48,10 +49,21 @@ public class InterpretationService {
      */
     public Optional<Resolution> resolve(ParsedMic mic, Interpretation reported,
                                         Microorganism microorganism, Antibiotic antibiotic) {
-        Optional<Interpretation> calculated = Optional.ofNullable(mic).flatMap(m -> breakpointRepository
-                .findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
-                        microorganism.getId(), antibiotic.getId(), standard, version)
-                .flatMap(bp -> classify(m, bp)));
+        return resolve(mic, null, reported, microorganism, antibiotic);
+    }
+
+    /**
+     * Orden: CIM concluyente → halo de disco → interpretación del laboratorio. La CIM manda porque es
+     * cuantitativa y es lo que reportan los equipos automatizados; el disco cubre la microbiología manual.
+     */
+    public Optional<Resolution> resolve(ParsedMic mic, Integer diskMm, Interpretation reported,
+                                        Microorganism microorganism, Antibiotic antibiotic) {
+        Optional<Breakpoint> breakpoint = mic == null && diskMm == null ? Optional.empty()
+                : breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+                        microorganism.getId(), antibiotic.getId(), standard, version);
+        Optional<Interpretation> calculated = breakpoint
+                .flatMap(bp -> Optional.ofNullable(mic).flatMap(m -> classify(m, bp))
+                        .or(() -> Optional.ofNullable(diskMm).flatMap(d -> classifyDisk(d, bp))));
         if (calculated.isPresent()) {
             return Optional.of(new Resolution(calculated.get(), InterpretationSource.CALCULATED, standard, version));
         }
@@ -61,6 +73,10 @@ public class InterpretationService {
 
     /** Categoría que contiene todo el rango de la CIM; vacío si el rango cruza categorías. */
     static Optional<Interpretation> classify(ParsedMic mic, Breakpoint bp) {
+        // Un punto de corte solo de disco no dice nada de la CIM: no se clasifica (antes de V11 no existían).
+        if (bp.getSusceptibleMax() == null && bp.getResistantMin() == null) {
+            return Optional.empty();
+        }
         BigDecimal value = mic.value();
         return switch (mic.qualifier()) {
             case EQ -> Optional.of(classifyExact(value, bp));
@@ -69,6 +85,26 @@ public class InterpretationService {
             case GE -> resistantIfAtLeast(value, bp);
             case GT -> resistantIfAtLeast(value.multiply(TWO), bp);
         };
+    }
+
+    /**
+     * Halo de disco en mm. Al revés que la CIM: halo grande = sensible. Vacío si el punto de corte no
+     * tiene valores de disco (no se adivina).
+     */
+    static Optional<Interpretation> classifyDisk(int mm, Breakpoint bp) {
+        Integer sMin = bp.getDiskSusceptibleMin();
+        Integer rMax = bp.getDiskResistantMax();
+        if (sMin == null && rMax == null) {
+            return Optional.empty();
+        }
+        if (sMin != null && mm >= sMin) {
+            return Optional.of(Interpretation.SUSCEPTIBLE);
+        }
+        if (rMax != null && mm <= rMax) {
+            return Optional.of(Interpretation.RESISTANT);
+        }
+        // Solo es intermedio si ambos límites existen; con uno solo, el resto del rango es desconocido.
+        return sMin != null && rMax != null ? Optional.of(Interpretation.INTERMEDIATE) : Optional.empty();
     }
 
     private static Interpretation classifyExact(BigDecimal mic, Breakpoint bp) {

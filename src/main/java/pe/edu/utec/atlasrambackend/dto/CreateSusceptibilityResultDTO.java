@@ -1,6 +1,7 @@
 package pe.edu.utec.atlasrambackend.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.MicQualifier;
@@ -12,6 +13,6 @@ public record CreateSusceptibilityResultDTO(
         @NotNull Long antibioticId,
         @Positive BigDecimal micValue,
         MicQualifier micQualifier,
-        Integer diskDiffusionMm,
+        @Positive @Max(99) Integer diskDiffusionMm,
         Interpretation reportedInterpretation
 ) {}

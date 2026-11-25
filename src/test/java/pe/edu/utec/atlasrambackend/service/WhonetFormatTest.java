@@ -48,7 +48,7 @@ class WhonetFormatTest {
     }
 
     @Test
-    void conCimYDiscoMandaLaCim() {
+    void conCimYDiscoSeGuardanAmbos() {
         CsvParser.Result r = parse("""
                 SPEC_DATE,SPEC_TYPE,ORGANISM,CIP_ND5,CIP_NM
                 2026-08-20,URINE,eco,22,0.5
@@ -56,18 +56,33 @@ class WhonetFormatTest {
 
         assertThat(r.rows()).hasSize(1);
         assertThat(r.rows().get(0).micValue()).isEqualTo("0.5");
+        assertThat(r.rows().get(0).diskMm()).isEqualTo("22");
     }
 
     @Test
-    void unDiametroDeDiscoSinInterpretarSeInformaComoError() {
+    void elDiametroDeDiscoSeLeeEnMmYLaLetraComoInterpretacion() {
         CsvParser.Result r = parse("""
                 SPEC_DATE,SPEC_TYPE,ORGANISM,CIP_ND5,AMK_ND30
                 2026-08-20,URINE,eco,22,S
                 """);
 
-        assertThat(r.rows()).extracting(CsvRowDTO::antibioticCode).containsExactly("AMK");
-        assertThat(r.malformed()).hasSize(1);
-        assertThat(r.malformed().get(0)).contains("CIP_ND5").contains("disco");
+        assertThat(r.malformed()).isEmpty();
+        assertThat(r.rows()).extracting(CsvRowDTO::antibioticCode).containsExactly("CIP", "AMK");
+        assertThat(r.rows().get(0).diskMm()).isEqualTo("22");
+        assertThat(r.rows().get(0).reportedInterpretation()).isEmpty();
+        assertThat(r.rows().get(1).diskMm()).isEmpty();
+        assertThat(r.rows().get(1).reportedInterpretation()).isEqualTo("S");
+    }
+
+    @Test
+    void elCsvPropioAceptaElHaloConVariosNombres() {
+        CsvParser.Result r = parse("""
+                fecha_toma,tipo_muestra,codigo_microorganismo,codigo_antibiotico,diametro_halo
+                2026-08-20,URINE,eco,CIP,19
+                """);
+
+        assertThat(r.rows().get(0).diskMm()).isEqualTo("19");
+        assertThat(r.rows().get(0).micValue()).isEmpty();
     }
 
     @Test

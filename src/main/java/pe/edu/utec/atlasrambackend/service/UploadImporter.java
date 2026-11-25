@@ -223,14 +223,18 @@ public class UploadImporter {
             result.setMicQualifier(mic.qualifier());
         }
 
+        Integer diskMm = parseDisk(row.diskMm(), row.antibioticCode());
+        result.setDiskDiffusionMm(diskMm);
+
         Interpretation reported = CsvValues.parseInterpretation(row.reportedInterpretation());
         result.setReportedInterpretation(reported);
 
         InterpretationService.Resolution resolution = interpretationService
-                .resolve(mic, reported, isolate.getMicroorganism(), antibiotic)
+                .resolve(mic, diskMm, reported, isolate.getMicroorganism(), antibiotic)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No se pudo interpretar " + row.antibioticCode()
-                                + ": sin punto de corte o CIM no concluyente, y sin interpretación del laboratorio"));
+                                + ": sin punto de corte (de CIM o de disco) o valor no concluyente,"
+                                + " y sin interpretación del laboratorio"));
 
         result.setInterpretation(resolution.interpretation());
         result.setInterpretationSource(resolution.source());
@@ -238,5 +242,22 @@ public class UploadImporter {
         result.setBreakpointVersion(resolution.breakpointVersion());
 
         isolate.addResult(result);
+    }
+
+    /** Halo en mm: entero entre 1 y 99 ("18" o "18.0"). Vacío → sin disco. */
+    static Integer parseDisk(String raw, String antibioticCode) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            double value = Double.parseDouble(raw.trim().replace(',', '.'));
+            if (value != Math.rint(value) || value < 1 || value > 99) {
+                throw new NumberFormatException();
+            }
+            return (int) value;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Halo inválido para " + antibioticCode + ": '" + raw
+                    + "' (se espera un entero en mm, de 1 a 99)");
+        }
     }
 }

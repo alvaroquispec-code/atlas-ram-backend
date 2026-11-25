@@ -463,15 +463,18 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 | `codigo_microorganismo` | sí | `eco` | códigos WHONET |
 | `codigo_antibiotico` | sí | `MEM` | códigos WHONET |
 | `cim` | * | `<=0.25`, `>=16`, `0,5`, `4/76` | con calificador; coma decimal aceptada |
-| `interpretacion_laboratorio` | * | `S`, `I`, `R`, `RESISTENTE` | se usa si la CIM no basta para interpretar |
+| `halo_mm` | * | `19` | diámetro del halo en mm (difusión en disco); también `halo`, `diametro_halo`, `disco_mm` |
+| `interpretacion_laboratorio` | * | `S`, `I`, `R`, `RESISTENTE` | se usa si ni la CIM ni el halo bastan para interpretar |
 | `id_paciente` | recomendada | historia clínica | se guarda solo un seudónimo HMAC; permite la regla del primer aislamiento (CLSI M39) |
 | `id_aislamiento` | recomendada | número de muestra | evita mezclar pacientes y registrar dos veces el mismo aislamiento |
 | `codigo_establecimiento` | no | `HNCH` | si viene, debe ser el de la carga |
 | `edad`, `sexo`, `ubigeo_residencia` | no | `47`, `F`, `150135` | |
 
-\* Cada fila necesita una CIM interpretable o la interpretación del laboratorio.
+\* Cada fila necesita una CIM o un halo interpretables, o la interpretación del laboratorio.
 
-**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) solo se aceptan con S, I o R, porque los diámetros todavía no se interpretan; si un antibiótico trae CIM y disco, se usa la CIM.
+**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
+
+**Interpretación por disco.** Orden: CIM concluyente → halo → interpretación del laboratorio. En el disco el sentido es el contrario al de la CIM: sensible si el halo ≥ `diskSusceptibleMin`, resistente si ≤ `diskResistantMax`, intermedio entre ambos. Esos dos valores se cargan por punto de corte (`POST /breakpoints`) desde la tabla vigente de CLSI M100; el sistema no trae valores de disco precargados para no publicar puntos de corte desactualizados.
 
 **Procedencia.** `POST /uploads` recibe `origin=REAL` o `origin=SYNTHETIC` (por defecto `SYNTHETIC`: el sistema nunca presume que un dato es real). Todas las consultas del antibiograma, la tendencia, el WISCA y el mapa aceptan `origin` para calcular solo con datos reales, y cada fila del antibiograma informa `realDataPercentage`. El seed completo es `SYNTHETIC`.
 

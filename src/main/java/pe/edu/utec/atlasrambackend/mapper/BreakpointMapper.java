@@ -20,7 +20,9 @@ public class BreakpointMapper {
                 b.getStandard(),
                 b.getVersion(),
                 b.getSusceptibleMax(),
-                b.getResistantMin()
+                b.getResistantMin(),
+                b.getDiskSusceptibleMin(),
+                b.getDiskResistantMax()
         );
     }
 
@@ -32,6 +34,8 @@ public class BreakpointMapper {
         breakpoint.setVersion(dto.version());
         breakpoint.setSusceptibleMax(dto.susceptibleMax());
         breakpoint.setResistantMin(dto.resistantMin());
+        breakpoint.setDiskSusceptibleMin(dto.diskSusceptibleMin());
+        breakpoint.setDiskResistantMax(dto.diskResistantMax());
         return breakpoint;
     }
 }

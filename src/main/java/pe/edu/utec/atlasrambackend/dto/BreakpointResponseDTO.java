@@ -13,6 +13,8 @@ public record BreakpointResponseDTO(
         String standard,
         String version,
         BigDecimal susceptibleMax,
-        BigDecimal resistantMin
+        BigDecimal resistantMin,
+        Integer diskSusceptibleMin,
+        Integer diskResistantMax
 ) {}
 

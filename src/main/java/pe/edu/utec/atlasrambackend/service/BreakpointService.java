@@ -70,6 +70,8 @@ public class BreakpointService {
         breakpoint.setVersion(dto.version());
         breakpoint.setSusceptibleMax(dto.susceptibleMax());
         breakpoint.setResistantMin(dto.resistantMin());
+        breakpoint.setDiskSusceptibleMin(dto.diskSusceptibleMin());
+        breakpoint.setDiskResistantMax(dto.diskResistantMax());
         return breakpointMapper.toResponse(breakpoint);
     }
 
@@ -79,9 +81,15 @@ public class BreakpointService {
     }
 
     private void validateThresholds(CreateBreakpointDTO dto) {
-        if (dto.susceptibleMax() == null && dto.resistantMin() == null) {
-            throw new BusinessRuleException(
-                    "Un punto de corte necesita al menos un umbral: susceptibleMax o resistantMin");
+        if (dto.susceptibleMax() == null && dto.resistantMin() == null
+                && dto.diskSusceptibleMin() == null && dto.diskResistantMax() == null) {
+            throw new BusinessRuleException("Un punto de corte necesita al menos un umbral: de CIM "
+                    + "(susceptibleMax, resistantMin) o de disco (diskSusceptibleMin, diskResistantMax)");
+        }
+        if (dto.diskSusceptibleMin() != null && dto.diskResistantMax() != null
+                && dto.diskResistantMax() >= dto.diskSusceptibleMin()) {
+            throw new BusinessRuleException("En disco el halo resistente debe ser menor que el sensible: "
+                    + "diskResistantMax < diskSusceptibleMin");
         }
         if (dto.susceptibleMax() != null && dto.resistantMin() != null
                 && dto.susceptibleMax().compareTo(dto.resistantMin()) > 0) {

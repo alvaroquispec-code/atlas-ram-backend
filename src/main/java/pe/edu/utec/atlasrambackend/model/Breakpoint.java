@@ -51,4 +51,14 @@ public class Breakpoint {
     @Positive
     @Column(name="resistant_min", precision = 10, scale=4)
     private BigDecimal resistantMin;
+
+    /** Disco: sensible si el halo mide al menos esto (mm). El sentido es el contrario al de la CIM. */
+    @Positive
+    @Column(name = "disk_susceptible_min")
+    private Integer diskSusceptibleMin;
+
+    /** Disco: resistente si el halo mide como máximo esto (mm). */
+    @Positive
+    @Column(name = "disk_resistant_max")
+    private Integer diskResistantMax;
 }

@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,6 +44,7 @@ class UploadImporterTest {
                     + "codigo_antibiotico,interpretacion_laboratorio,id_paciente,id_aislamiento\n";
 
     private IsolateRepository isolateRepository;
+    private InterpretationService interpretationService;
     private UploadImporter service;
     private DataUpload upload;
 
@@ -51,7 +53,7 @@ class UploadImporterTest {
         DataUploadRepository uploadRepository = mock(DataUploadRepository.class);
         MicroorganismRepository microorganismRepository = mock(MicroorganismRepository.class);
         AntibioticRepository antibioticRepository = mock(AntibioticRepository.class);
-        InterpretationService interpretationService = mock(InterpretationService.class);
+        interpretationService = mock(InterpretationService.class);
         isolateRepository = mock(IsolateRepository.class);
 
         Facility hnch = new Facility();
@@ -75,8 +77,8 @@ class UploadImporterTest {
             return Optional.of(a);
         });
         // La interpretación no es lo que se prueba aquí: se acepta la del laboratorio.
-        when(interpretationService.resolve(any(), any(), any(), any())).thenAnswer(inv -> Optional.of(
-                new InterpretationService.Resolution(inv.getArgument(1), InterpretationSource.LAB_REPORTED, null, null)));
+        when(interpretationService.resolve(any(), any(), any(), any(), any())).thenAnswer(inv -> Optional.of(
+                new InterpretationService.Resolution(inv.getArgument(2), InterpretationSource.LAB_REPORTED, null, null)));
         when(isolateRepository.findUploadIdsOfLabIsolate(any(), anyString(), any())).thenReturn(List.of());
 
         service = new UploadImporter(uploadRepository, mock(DistrictRepository.class), microorganismRepository,
@@ -171,5 +173,27 @@ class UploadImporterTest {
         List<Isolate> isolates = run(HEADER + "2026-08-20,URINE,47,F,HNCH,eco,MEM,R,HC-001,\n");
 
         assertThat(isolates.get(0).getResults().get(0).getInterpretation()).isEqualTo(Interpretation.RESISTANT);
+    }
+
+    @Test
+    void elHaloSeGuardaYSeInterpreta() {
+        List<Isolate> isolates = run("fecha_toma,tipo_muestra,codigo_establecimiento,codigo_microorganismo,"
+                + "codigo_antibiotico,halo_mm,interpretacion_laboratorio\n"
+                + "2026-08-20,URINE,HNCH,eco,CIP,19,I\n");
+
+        assertThat(isolates).hasSize(1);
+        var result = isolates.get(0).getResults().get(0);
+        assertThat(result.getDiskDiffusionMm()).isEqualTo(19);
+        verify(interpretationService).resolve(any(), org.mockito.ArgumentMatchers.eq(19), any(), any(), any());
+    }
+
+    @Test
+    void elHaloDebeSerUnEnteroEnMm() {
+        assertThat(UploadImporter.parseDisk("", "CIP")).isNull();
+        assertThat(UploadImporter.parseDisk("18", "CIP")).isEqualTo(18);
+        assertThat(UploadImporter.parseDisk("18.0", "CIP")).isEqualTo(18);
+        assertThatThrownBy(() -> UploadImporter.parseDisk("18.5", "CIP")).hasMessageContaining("Halo inválido");
+        assertThatThrownBy(() -> UploadImporter.parseDisk("0", "CIP")).hasMessageContaining("Halo inválido");
+        assertThatThrownBy(() -> UploadImporter.parseDisk("S", "CIP")).hasMessageContaining("Halo inválido");
     }
 }
