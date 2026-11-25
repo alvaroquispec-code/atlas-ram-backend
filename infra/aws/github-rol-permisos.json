@@ -1,0 +1,26 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SubirJar",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::atlasram-releases-845261682591-us-east-1-an/releases/*"
+    },
+    {
+      "Sid": "OrdenarDespliegueSoloAEsaInstancia",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": [
+        "arn:aws:ec2:us-east-1:845261682591:instance/i-07040b6b534cc77d3",
+        "arn:aws:ssm:us-east-1::document/AWS-RunShellScript"
+      ]
+    },
+    {
+      "Sid": "LeerResultado",
+      "Effect": "Allow",
+      "Action": "ssm:GetCommandInvocation",
+      "Resource": "*"
+    }
+  ]
+}

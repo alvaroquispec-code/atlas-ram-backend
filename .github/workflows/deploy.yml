@@ -1,0 +1,111 @@
+name: Despliegue a producción
+
+# Se ejecuta solo cuando el CI de main terminó en verde (las 220 pruebas pasaron sobre ese mismo commit),
+# o a mano desde la pestaña Actions. No usa llaves de AWS guardadas: GitHub obtiene una credencial
+# temporal por OIDC y AWS Systems Manager ejecuta el despliegue en el servidor, sin abrir el puerto 22.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Nunca dos despliegues a la vez; el segundo espera al primero.
+concurrency:
+  group: despliegue-produccion
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # para pedir el token OIDC
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET }}
+  EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+
+jobs:
+  deploy:
+    name: Desplegar en EC2
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout del commit probado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # Las pruebas ya corrieron en el CI sobre este mismo commit.
+      - name: Empaquetar
+        run: mvn -B clean package -DskipTests
+
+      - name: Credenciales temporales de AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Subir el jar a S3
+        id: upload
+        run: |
+          SHA=$(git rev-parse HEAD)
+          aws s3 cp target/atlas-ram-backend-0.0.1-SNAPSHOT.jar "s3://${DEPLOY_BUCKET}/releases/${SHA}.jar" --only-show-errors
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Ejecutar el despliegue en el servidor (Systems Manager)
+        id: send
+        env:
+          SHA: ${{ steps.upload.outputs.sha }}
+        run: |
+          SCRIPT=$(cat scripts/deploy-remote.sh)
+          PARAMS=$(jq -n --arg pre "export SHA=${SHA} BUCKET=${DEPLOY_BUCKET} AWS_REGION=${AWS_REGION}" --arg s "$SCRIPT" \
+            '{commands: [$pre, $s], executionTimeout: ["900"]}')
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Atlas RAM ${SHA:0:7}" \
+            --parameters "$PARAMS" \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=${CMD_ID}" >> "$GITHUB_OUTPUT"
+          echo "Comando SSM: ${CMD_ID}"
+
+      - name: Esperar el resultado
+        env:
+          CMD_ID: ${{ steps.send.outputs.command_id }}
+        run: |
+          for i in $(seq 1 90); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+                       --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in
+              Pending|InProgress|Delayed) sleep 10 ;;
+              *) break ;;
+            esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardOutputContent --output text
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::El despliegue terminó en estado ${STATUS}"
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+              --query StandardErrorContent --output text
+            exit 1
+          fi
+
+      - name: Verificar desde internet
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS -o /dev/null "${{ vars.PUBLIC_API_URL || 'https://3-85-201-152.sslip.io/api/v1' }}/districts"; then
+              echo "La API pública responde."; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::La API pública no responde"; exit 1

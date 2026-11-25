@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LeerJarDelDespliegue",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::atlasram-releases-845261682591-us-east-1-an/releases/*"
+    }
+  ]
+}
