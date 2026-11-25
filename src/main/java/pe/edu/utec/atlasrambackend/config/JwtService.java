@@ -13,12 +13,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class JwtService {
 
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TYPE = "type";
+    private static final String CLAIM_VERSION = "ver";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
     private static final int MIN_SECRET_BYTES = 32;
@@ -53,12 +55,17 @@ public class JwtService {
         return raw;
     }
 
-    public String generateAccessToken(String email, Role role) {
-        return build(email, Map.of(CLAIM_TYPE, TYPE_ACCESS, CLAIM_ROLE, role.name()), accessExpirationMs);
+    /** Sujeto de un token válido: el correo del usuario y la versión de sesión con que se emitió. */
+    public record TokenSubject(String email, int version) {}
+
+    public String generateAccessToken(String email, Role role, int sessionVersion) {
+        return build(email, Map.of(CLAIM_TYPE, TYPE_ACCESS, CLAIM_ROLE, role.name(),
+                CLAIM_VERSION, sessionVersion), accessExpirationMs);
     }
 
-    public String generateRefreshToken(String email) {
-        return build(email, Map.of(CLAIM_TYPE, TYPE_REFRESH), refreshExpirationMs);
+    public String generateRefreshToken(String email, int sessionVersion) {
+        return build(email, Map.of(CLAIM_TYPE, TYPE_REFRESH, CLAIM_VERSION, sessionVersion),
+                refreshExpirationMs);
     }
 
     private String build(String subject, Map<String, ?> claims, long expirationMs) {
@@ -72,20 +79,29 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractEmailFromAccessToken(String token) {
+    public Optional<TokenSubject> parseAccessToken(String token) {
         return subjectIfType(token, TYPE_ACCESS);
     }
 
-    public String extractEmailFromRefreshToken(String token) {
+    public Optional<TokenSubject> parseRefreshToken(String token) {
         return subjectIfType(token, TYPE_REFRESH);
     }
 
-    private String subjectIfType(String token, String expectedType) {
+    /**
+     * Devuelve el sujeto solo si la firma es válida, el token no venció, es del tipo esperado y trae la
+     * versión de sesión. Un token sin "ver" (emitido antes de V12) se rechaza.
+     */
+    private Optional<TokenSubject> subjectIfType(String token, String expectedType) {
         try {
             Claims claims = parse(token);
-            return expectedType.equals(claims.get(CLAIM_TYPE, String.class)) ? claims.getSubject() : null;
+            Integer version = claims.get(CLAIM_VERSION, Integer.class);
+            if (!expectedType.equals(claims.get(CLAIM_TYPE, String.class))
+                    || version == null || claims.getSubject() == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new TokenSubject(claims.getSubject(), version));
         } catch (JwtException | IllegalArgumentException e) {
-            return null;
+            return Optional.empty();
         }
     }
 

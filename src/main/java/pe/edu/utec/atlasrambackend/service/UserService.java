@@ -2,6 +2,7 @@ package pe.edu.utec.atlasrambackend.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.UserResponseDTO;
@@ -16,10 +17,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, UserMapper userMapper) {
+    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -39,11 +42,26 @@ public class UserService {
         return userMapper.toResponse(user);
     }
 
+    /**
+     * El administrador asigna una contraseña nueva (por ejemplo, si el usuario la olvidó) y se cierran
+     * todas las sesiones abiertas de ese usuario.
+     */
+    @Transactional
+    public UserResponseDTO resetPassword(Long id, String newPassword) {
+        User user = getOrThrow(id);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.revokeSessions();
+        return userMapper.toResponse(user);
+    }
+
     /** Desactivar en lugar de borrar: los aislamientos cargados conservan su trazabilidad. */
     @Transactional
     public UserResponseDTO setActive(Long id, boolean active) {
         User user = getOrThrow(id);
         user.setActive(active);
+        if (!active) {
+            user.revokeSessions();
+        }
         return userMapper.toResponse(user);
     }
 
