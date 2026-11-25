@@ -55,15 +55,7 @@ public class CsvParser {
     }
 
     public Result parse(byte[] content) {
-        String text = decode(content);
-        if (!text.isEmpty() && text.charAt(0) == '﻿') {
-            text = text.substring(1);
-        }
-        List<CsvRecord> records = tokenize(text, detectDelimiter(text));
-        records.removeIf(CsvRecord::isBlank);
-        if (records.isEmpty()) {
-            throw new InvalidCsvFormatException("El archivo está vacío");
-        }
+        List<CsvRecord> records = readRecords(content);
 
         CsvRecord header = records.get(0);
         if (WhonetFormat.matches(header.fields())) {
@@ -196,6 +188,20 @@ public class CsvParser {
         if (!field.isEmpty() || !fields.isEmpty() || quotedField) {
             fields.add(field.toString());
             records.add(new CsvRecord(recordLine, fields));
+        }
+        return records;
+    }
+
+    /** Registros no vacíos del archivo (UTF-8, sin BOM, separador detectado). Lo usa también el kardex. */
+    static List<CsvRecord> readRecords(byte[] content) {
+        String text = decode(content);
+        if (!text.isEmpty() && text.charAt(0) == '\ufeff') {
+            text = text.substring(1);
+        }
+        List<CsvRecord> records = tokenize(text, detectDelimiter(text));
+        records.removeIf(CsvRecord::isBlank);
+        if (records.isEmpty()) {
+            throw new InvalidCsvFormatException("El archivo está vacío");
         }
         return records;
     }

@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface StockLotRepository extends JpaRepository<StockLot, Long> {
 
+    Optional<StockLot> findByStockItemIdAndLotNumberIgnoreCase(Long stockItemId, String lotNumber);
+
     /** Lotes con saldo de los ítems de un establecimiento (para stock disponible y riesgo de vencimiento). */
     @Query("""
             select l from StockLot l

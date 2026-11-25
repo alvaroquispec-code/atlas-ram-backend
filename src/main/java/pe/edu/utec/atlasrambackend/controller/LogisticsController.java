@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import pe.edu.utec.atlasrambackend.dto.KardexImportResultDTO;
+import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
+import pe.edu.utec.atlasrambackend.service.KardexImporter;
 import pe.edu.utec.atlasrambackend.dto.CreateStockItemDTO;
 import pe.edu.utec.atlasrambackend.dto.DddReportDTO;
 import pe.edu.utec.atlasrambackend.dto.FacilityStockReportDTO;
@@ -43,10 +47,28 @@ public class LogisticsController {
 
     private final StockService stockService;
     private final LogisticsService logisticsService;
+    private final KardexImporter kardexImporter;
 
-    public LogisticsController(StockService stockService, LogisticsService logisticsService) {
+    public LogisticsController(StockService stockService, LogisticsService logisticsService,
+                               KardexImporter kardexImporter) {
         this.stockService = stockService;
         this.logisticsService = logisticsService;
+        this.kardexImporter = kardexImporter;
+    }
+
+    /**
+     * Importa el kardex de la farmacia (CSV): una fila por ingreso, consumo o baja. Cada fila se aplica sola;
+     * la respuesta trae cuántas se aplicaron y el error de cada una que no.
+     */
+    @PostMapping("/facilities/{facilityId}/movements/import")
+    @PreAuthorize("@facilityAccess.canAccess(authentication, #facilityId)")
+    public ResponseEntity<KardexImportResultDTO> importKardex(@PathVariable Long facilityId,
+                                                              @RequestParam("file") MultipartFile file,
+                                                              Authentication authentication) throws java.io.IOException {
+        if (file.isEmpty()) {
+            throw new BusinessRuleException("El archivo está vacío");
+        }
+        return ResponseEntity.ok(kardexImporter.importFile(facilityId, file.getBytes(), authentication.getName()));
     }
 
     /** Tablero del establecimiento: estado SISMED, pedido sugerido, vencimientos y presión de brote por ítem. */

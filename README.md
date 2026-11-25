@@ -496,6 +496,9 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 | `GET` | `/logistics/facilities/{id}/ddd?from&to&bedDays` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 | `POST` | `/logistics/items`, `/logistics/items/{id}/receipts`, `/logistics/items/{id}/consumptions`, `/logistics/lots/{id}/write-off` | farmacéutico (su establecimiento) o administrador |
+| `POST` | `/logistics/facilities/{id}/movements/import` (CSV, campo `file`) | farmacéutico (su establecimiento) o administrador |
+
+**Importar el kardex.** La farmacia puede subir el kardex que ya lleva (exportado de su sistema o de Excel): una fila por movimiento, con columnas `fecha`, `tipo` (`INGRESO`/`ENTRADA`, `CONSUMO`/`SALIDA`/`DISPENSACION`, `BAJA`/`MERMA`), `codigo_antibiotico`, `cantidad` y, según el tipo, `lote`, `vencimiento`, `presentacion` y `nota`. Se aceptan varios nombres por columna (por ejemplo "Fecha de vencimiento" u "Observación"). Las filas se aplican por fecha y, el mismo día, primero los ingresos; cada una pasa por las mismas reglas del kardex manual (FEFO, sin stock negativo) y las que fallan se devuelven con su número de línea.
 | `GET` | `/logistics/items/{id}/lots`, `/logistics/items/{id}/movements` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 
 Usuarios de prueba del seed: `admin@atlasram.test`, contraseña `AtlasRam2026!`.

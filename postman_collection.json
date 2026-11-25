@@ -3720,6 +3720,59 @@
               }
             }
           ]
+        },
+        {
+          "name": "Importar kardex (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/facilities/6/movements/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "facilities",
+                "6",
+                "movements",
+                "import"
+              ]
+            },
+            "description": "Kardex de la farmacia: fecha, tipo (INGRESO, CONSUMO, BAJA), codigo_antibiotico, cantidad, lote, vencimiento. Elegir prueba-kardex.csv. Devuelve filas aplicadas y errores por línea.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pharmacistToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Informa filas aplicadas\", () => pm.expect(pm.response.json()).to.have.property(\"processedRows\"));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
