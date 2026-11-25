@@ -32,9 +32,10 @@ public class WiscaService {
     static final String METHOD = "WISCA bayesiano (Hebert 2012; Bielicki 2016): frecuencias de gérmenes "
             + "Dirichlet(n+1) y sensibilidad Beta(k+1, m−k+1), 10 000 simulaciones de Monte Carlo. Primer "
             + "aislamiento por paciente y especie (CLSI M39). El síndrome se aproxima por el tipo de muestra. "
-            + "Un antibiótico que el laboratorio nunca prueba frente a un germen se considera sin actividad "
-            + "contra él (resistencia intrínseca), y un germen sin ningún antibiótico del régimen probado se "
-            + "cuenta como no cubierto. Regla de CLSI M100 aplicada: oxacilina de S. aureus para los betalactámicos.";
+            + "Los pares germen–antibiótico que el laboratorio no prueba se completan con los fenotipos esperados "
+            + "de EUCAST (Expected Resistant Phenotypes v1.2, 2023; Expected Susceptible Phenotypes v1.1, 2022); "
+            + "un germen sin pruebas ni fenotipo esperado para el régimen se cuenta como no cubierto y se informa. "
+            + "Regla de CLSI M100 aplicada: oxacilina de S. aureus para los betalactámicos.";
 
     private final AntibiogramQueries queries;
     private final AntibioticRepository antibioticRepository;
@@ -73,6 +74,7 @@ public class WiscaService {
                         r.median(), r.mean(), r.low(), r.high(),
                         r.probabilityAboveTarget(), r.probabilityBest(),
                         r.untestedFrequency(), r.untestedPathogens(),
+                        r.expectedSusceptiblePathogens(), r.expectedResistantPathogens(),
                         r.byPathogen().stream().map(p -> new WiscaResponseDTO.PathogenCoverage(
                                 p.microorganismName(), p.evaluated(), p.covered(), p.percentage())).toList()))
                 .toList();
