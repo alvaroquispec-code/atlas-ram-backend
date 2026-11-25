@@ -61,7 +61,7 @@ public class LogisticsService {
             Demanda: clasificación de Syntetos-Boylan-Croston (ADI 1.32, CV² 0.49) sobre hasta 12 meses; pronóstico \
             SES (frecuente), SBA (intermitente) o TSB (intermitente que se apaga). \
             Reposición (R, S): S = percentil del nivel de servicio de la demanda en R + L días, estimado por el \
-            bootstrap de Willemain (5 000 simulaciones); pedido sugerido = S − (disponible + en camino). \
+            bootstrap de Willemain (5 000 simulaciones), con un piso de 10 % sobre la demanda esperada; pedido sugerido = S − (disponible + en camino). \
             Nivel de servicio: 99 % vital o Reserve, 95 % esencial o Watch, 90 % el resto, salvo valor del ítem. \
             ABC por valor de consumo de 12 meses cruzado con VEN. Riesgo de vencimiento: saldo de cada lote que no \
             se consumirá antes de vencer al ritmo actual (FEFO). Presión de brote: alerta activa + fármaco de \
@@ -250,7 +250,7 @@ public class LogisticsService {
                 round(plan.classification().cv2(), 2), plan.method(), round(plan.forecastPerMonth(), 1),
                 series.length,
                 item.getReviewPeriodDays(), item.getLeadTimeDays(), serviceLevel,
-                round(plan.expectedProtectionDemand(), 1), plan.safetyStock(), plan.orderUpTo(),
+                round(plan.expectedProtectionDemand(), 1), plan.safetyStock(), plan.safetyFloorApplied(), plan.orderUpTo(),
                 plan.inventoryPosition(), plan.suggestedOrder(), money(unitCost, plan.suggestedOrder()),
                 atRisk, money(unitCost, atRisk), nextExpiry, outbreak.isPresent(), outbreak.orElse(null),
                 monthly);

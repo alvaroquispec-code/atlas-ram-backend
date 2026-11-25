@@ -57,4 +57,27 @@ class ReplenishmentPlannerTest {
         assertThat(ServiceLevelPolicy.target(VenClass.NON_ESSENTIAL, AwareCategory.ACCESS, null)).isEqualTo(0.90);
         assertThat(ServiceLevelPolicy.target(VenClass.VITAL, null, new BigDecimal("0.97"))).isEqualTo(0.97);
     }
+
+    @Test
+    void stockDeSeguridadNuncaMenorAl10PorCiento() {
+        // Demanda casi constante: el bootstrap pediría muy poco colchón; el piso lo sube a 10 %.
+        int[] steady = {300, 302, 298, 301, 299, 300, 300, 301, 299, 300, 302, 298};
+        ReplenishmentPlanner.Plan plan = ReplenishmentPlanner.plan(
+                new ReplenishmentPlanner.Input(steady, 0, 0, 30, 15, 0.90, 7));
+
+        double expected = plan.expectedProtectionDemand();
+        assertThat(plan.orderUpTo()).isGreaterThanOrEqualTo((int) Math.ceil(expected * 1.10));
+        assertThat(plan.safetyStock()).isGreaterThanOrEqualTo((int) Math.floor(expected * 0.10));
+        assertThat(plan.safetyFloorApplied()).isTrue();
+    }
+
+    @Test
+    void conDemandaVariableMandaElBootstrap() {
+        int[] volatileSeries = {10, 90, 0, 120, 5, 80, 0, 150, 20, 60, 0, 110};
+        ReplenishmentPlanner.Plan plan = ReplenishmentPlanner.plan(
+                new ReplenishmentPlanner.Input(volatileSeries, 0, 0, 30, 15, 0.99, 7));
+
+        assertThat(plan.safetyFloorApplied()).isFalse();
+        assertThat(plan.safetyStock()).isGreaterThan((int) Math.ceil(plan.expectedProtectionDemand() * 0.10));
+    }
 }

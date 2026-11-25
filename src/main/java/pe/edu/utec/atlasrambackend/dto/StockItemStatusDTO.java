@@ -50,6 +50,7 @@ public record StockItemStatusDTO(
         double serviceLevel,
         Double expectedProtectionDemand,
         Integer safetyStock,
+        boolean safetyFloorApplied,
         Integer orderUpTo,
         int inventoryPosition,
         Integer suggestedOrder,

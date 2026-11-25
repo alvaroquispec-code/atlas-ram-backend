@@ -13,6 +13,14 @@ public final class ReplenishmentPlanner {
 
     public static final double DAYS_PER_MONTH = 365.25 / 12;
 
+    /**
+     * Piso del stock de seguridad: al menos el 10 % de la demanda esperada en R + L, aunque el bootstrap
+     * diga que basta menos (demanda muy estable). Es la práctica que sugirió un patólogo clínico jefe de
+     * laboratorio de EsSalud consultado para el proyecto: ante cualquier imprevisto, la farmacia debería
+     * tener al menos un 10 % por encima de su consumo.
+     */
+    public static final double MIN_SAFETY_FRACTION = 0.10;
+
     private ReplenishmentPlanner() {
     }
 
@@ -23,7 +31,8 @@ public final class ReplenishmentPlanner {
     public record Plan(DemandClassifier.Result classification, ForecastMethod method,
                        Double forecastPerMonth, double dailyRate, Double coverageDays,
                        int protectionDays, Double expectedProtectionDemand, Integer safetyStock,
-                       Integer orderUpTo, int inventoryPosition, Integer suggestedOrder) {
+                       Integer orderUpTo, int inventoryPosition, Integer suggestedOrder,
+                       boolean safetyFloorApplied) {
     }
 
     public static Plan plan(Input in) {
@@ -40,18 +49,20 @@ public final class ReplenishmentPlanner {
 
         if (method == ForecastMethod.NONE) {
             return new Plan(classification, method, null, dailyRate, coverage, protectionDays,
-                    null, null, null, position, null);
+                    null, null, null, position, null, false);
         }
         double forecast = Forecasting.forecast(method, series);
         double horizon = protectionDays / DAYS_PER_MONTH;
         DemandBootstrap.Result simulated = DemandBootstrap.simulate(
                 series, horizon, in.serviceLevel(), DemandBootstrap.DRAWS, in.seed());
         double expected = forecast * horizon;
-        int orderUpTo = (int) Math.ceil(Math.max(simulated.quantile(), expected));
+        double floor = expected * (1 + MIN_SAFETY_FRACTION);
+        boolean floorApplied = floor > simulated.quantile();
+        int orderUpTo = (int) Math.ceil(Math.max(simulated.quantile(), floor));
         int safetyStock = (int) Math.max(0, Math.ceil(orderUpTo - expected));
         int suggested = Math.max(0, orderUpTo - position);
         return new Plan(classification, method, forecast, dailyRate, coverage, protectionDays,
-                expected, safetyStock, orderUpTo, position, suggested);
+                expected, safetyStock, orderUpTo, position, suggested, floorApplied);
     }
 
     /**
