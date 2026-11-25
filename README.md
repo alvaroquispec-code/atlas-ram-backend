@@ -492,7 +492,7 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 
 \* Cada fila necesita una CIM o un halo interpretables, o la interpretación del laboratorio.
 
-**Variables mínimas obligatorias del INS.** El INS exige sexo, edad, servicio y tipo de localización para enviar los datos a WHONET-INS. En el registro manual (`POST /isolates`, formulario web y móvil) los tres campos son obligatorios y se validan en el servidor. En una carga CSV o WHONET se aceptan vacíos para no perder el antibiograma, y `GET /uploads/{id}` informa el porcentaje de aislamientos de la carga que los trae (`completeness`).
+**Variables mínimas obligatorias del INS.** El INS exige sexo, edad, servicio y tipo de localización para enviar los datos a WHONET-INS. En el registro manual de un paciente (`POST /isolates`, formulario web y móvil, que incluye su antibiograma) los tres campos son obligatorios y se validan en el servidor. En una carga CSV o WHONET se aceptan vacíos para no perder el antibiograma, y `GET /uploads/{id}` informa el porcentaje de aislamientos de la carga que los trae (`completeness`).
 
 **Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`, `LOC_TYPE`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
 
@@ -534,6 +534,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
 | `GET` | `/fhir/isolates/{id}` | técnico, epidemiólogo o administrador (de su establecimiento): el aislamiento y su antibiograma en HL7 FHIR R4 |
+| `POST` | `/isolates` | técnico o administrador (de su establecimiento): registra un paciente con su antibiograma en una sola transacción (`results`: antibiótico, CIM como texto `"<=0.25"`, halo o interpretación) |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
 | `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |
