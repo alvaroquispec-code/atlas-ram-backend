@@ -10,11 +10,16 @@
 .EXAMPLE
   .\scripts\smoke.ps1
   .\scripts\smoke.ps1 -BaseUrl https://3-85-201-152.sslip.io/api/v1
+
+.NOTES
+  Contra localhost usa la contraseña del seed (db/seed/CALIBRACION.md). Contra cualquier otro servidor
+  la toma de la variable de entorno ATLAS_SMOKE_PASSWORD o la pide por teclado sin mostrarla:
+  ninguna contraseña real queda escrita en el repositorio.
 #>
 param(
     [string]$BaseUrl = "http://localhost:8080/api/v1",
     [string]$Email = "admin@atlasram.test",
-    [string]$Password = "AtlasRam2026!",
+    [string]$Password = $env:ATLAS_SMOKE_PASSWORD,
     [long]$FacilityId = 6
 )
 
@@ -37,6 +42,15 @@ function Check([string]$name, [scriptblock]$call, [scriptblock]$assert) {
         $status = $_.Exception.Response.StatusCode.value__
         Write-Host ("  FALLA {0,-48} HTTP {1} {2}" -f $name, $status, $_.Exception.Message) -ForegroundColor Red
         $script:failures++
+    }
+}
+
+if (-not $Password) {
+    if ($BaseUrl -match '^https?://(localhost|127\.0\.0\.1)(:|/)') {
+        $Password = "AtlasRam2026!"   # contraseña del seed local, ver db/seed/CALIBRACION.md
+    } else {
+        $secure = Read-Host "Contraseña de $Email en $BaseUrl" -AsSecureString
+        $Password = [System.Net.NetworkCredential]::new("", $secure).Password
     }
 }
 

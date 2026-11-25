@@ -19,7 +19,7 @@
 | **Web** (React) | https://atlas-ram-web.vercel.app | [`atlas-ram-web`](https://github.com/alvaroquispec-code/atlas-ram-web) |
 | **Móvil** (React Native + Expo) | https://github.com/alvaroquispec-code/atlas-ram-mobile/releases/latest/download/atlas-ram.apk | [`atlas-ram-mobile`](https://github.com/alvaroquispec-code/atlas-ram-mobile) |
 
-Usuario de prueba: `admin@atlasram.test` / `AtlasRam2026!` (datos de demostración). También hay técnicos de laboratorio, como `lab.hnch@atlasram.test`, con la misma contraseña.
+**Cuentas de demostración.** Cualquiera puede crear una cuenta desde *Registrarse*; el servidor siempre le asigna el rol de solo lectura (`PUBLIC_VIEWER`). Las cuentas con rol de laboratorio, epidemiología, farmacia o administración del despliegue público tienen una contraseña privada que se entrega a los evaluadores a pedido. En un entorno local, el seed crea esas mismas cuentas con la contraseña indicada en [`db/seed/CALIBRACION.md`](db/seed/CALIBRACION.md).
 
 ### Arquitectura de despliegue
 
@@ -452,7 +452,7 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 
   Corren sobre un PostgreSQL 16 desechable que levanta **Testcontainers** (Docker tiene que estar encendido), al que Flyway le aplica todas las migraciones desde cero. Así las pruebas nunca tocan la base de desarrollo y el CI prueba en cada push que un despliegue limpio funcione.
 
-**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`.
+**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`. Contra `localhost` usa la contraseña del seed; contra cualquier otro servidor la toma de la variable de entorno `ATLAS_SMOKE_PASSWORD` o la pide por teclado sin mostrarla, para que ninguna contraseña real quede escrita en el repositorio.
 
 ### Variables de entorno
 
@@ -533,7 +533,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 **Importar el kardex.** La farmacia puede subir el kardex que ya lleva (exportado de su sistema o de Excel): una fila por movimiento, con columnas `fecha`, `tipo` (`INGRESO`/`ENTRADA`, `CONSUMO`/`SALIDA`/`DISPENSACION`, `BAJA`/`MERMA`), `codigo_antibiotico`, `cantidad` y, según el tipo, `lote`, `vencimiento`, `presentacion` y `nota`. Se aceptan varios nombres por columna (por ejemplo "Fecha de vencimiento" u "Observación"). Las filas se aplican por fecha y, el mismo día, primero los ingresos; cada una pasa por las mismas reglas del kardex manual (FEFO, sin stock negativo) y las que fallan se devuelven con su número de línea.
 | `GET` | `/logistics/items/{id}/lots`, `/logistics/items/{id}/movements` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 
-Usuarios de prueba del seed: `admin@atlasram.test`, contraseña `AtlasRam2026!`.
+Usuarios de prueba del seed (solo entorno local; en el despliegue público estas cuentas usan otra contraseña): `admin@atlasram.test`, contraseña `AtlasRam2026!`.
 
 ---
 
