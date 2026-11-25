@@ -523,6 +523,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `POST` | `/auth/me/logout-all` | autenticado: cierra la sesión en todos sus dispositivos |
 | `PUT` | `/users/{id}/password` | administrador: restablece la contraseña de un usuario y cierra sus sesiones |
 | `GET` | `/districts`, `/microorganisms`, `/antibiotics`, `/facilities` | público |
+| `GET` | `/standards` | público: edición de CLSI M100 con que se interpretan las CIM, la norma de agregación (CLSI M39) y las tablas de fenotipos esperados de EUCAST |
 | `GET` | `/antibiogram` | público |
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
