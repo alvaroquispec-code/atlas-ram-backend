@@ -6,7 +6,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Formula;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -53,8 +52,12 @@ public class Isolate {
     @JoinColumn(name = "district_id")
     private District district;
 
+    /**
+     * Distrito por el que se agrega: el de residencia o, si falta, el del establecimiento. Lo calcula un
+     * trigger de PostgreSQL (V8), por eso la aplicación nunca lo escribe.
+     */
     @Setter(AccessLevel.NONE)
-    @Formula("coalesce(district_id, (select f.district_id from facility f where f.id = facility_id))")
+    @Column(name = "aggregation_district_id", insertable = false, updatable = false)
     private Long aggregationDistrictId;
 
     @NotNull
@@ -65,6 +68,18 @@ public class Isolate {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "data_upload_id")
     private DataUpload dataUpload;
+
+    /**
+     * Seudónimo del paciente (HMAC-SHA256 del identificador que envió el laboratorio). Nunca se guarda
+     * el identificador original. Null si el laboratorio no lo envió: entonces cada aislamiento cuenta
+     * como un paciente distinto.
+     */
+    @Column(name = "patient_key", length = 64)
+    private String patientKey;
+
+    /** Código del aislamiento en el laboratorio (número de muestra o de accesión), si lo envió. */
+    @Column(name = "lab_isolate_id", length = 50)
+    private String labIsolateId;
 
     @OneToMany(
             mappedBy = "isolate",
@@ -83,4 +98,9 @@ public class Isolate {
         results.remove(result);
         result.setIsolate(null);
     }
+
+    /** REAL o SYNTHETIC. Ver DataOrigin. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_origin", nullable = false, length = 20)
+    private DataOrigin dataOrigin = DataOrigin.SYNTHETIC;
 }

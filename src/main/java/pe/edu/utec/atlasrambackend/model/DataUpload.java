@@ -55,4 +55,23 @@ public class DataUpload {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name= "uploaded_by", nullable = false)
     private User uploadedBy;
+
+    /** Huella SHA-256 del archivo: impide cargar dos veces el mismo CSV en el mismo establecimiento. */
+    @Column(name = "file_sha256", length = 64)
+    private String fileSha256;
+
+    @Column(name = "reverted_at")
+    private Instant revertedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reverted_by")
+    private User revertedBy;
+
+    @Column(name = "revert_reason", length = 500)
+    private String revertReason;
+
+    /** REAL o SYNTHETIC. Ver DataOrigin. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_origin", nullable = false, length = 20)
+    private DataOrigin dataOrigin = DataOrigin.SYNTHETIC;
 }

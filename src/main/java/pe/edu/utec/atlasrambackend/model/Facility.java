@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,6 +34,18 @@ public class Facility {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "district_id", nullable = false)
     private District district;
+
+    /** Código único de IPRESS asignado por SUSALUD en el RENIPRESS (8 dígitos). */
+    @Column(name = "renipress_code", length = 8)
+    private String renipressCode;
+
+    /** Camas de hospitalización; con la ocupación da los días-cama del indicador DDD. */
+    @Column(name = "beds")
+    private Integer beds;
+
+    /** Ocupación promedio de camas, entre 0 y 1. */
+    @Column(name = "occupancy_rate", precision = 4, scale = 3)
+    private BigDecimal occupancyRate;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

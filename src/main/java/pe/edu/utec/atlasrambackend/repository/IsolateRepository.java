@@ -26,6 +26,21 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
 
     long countByDataUploadId(Long dataUploadId);
 
+    /** Carga en la que ya se registró ese aislamiento del laboratorio, si existe. */
+    @Query("""
+        select i.dataUpload.id from Isolate i
+        where i.facility.id = :facilityId
+          and i.labIsolateId = :labIsolateId
+          and i.microorganism.id = :microorganismId
+        """)
+    List<Long> findUploadIdsOfLabIsolate(@Param("facilityId") Long facilityId,
+                                         @Param("labIsolateId") String labIsolateId,
+                                         @Param("microorganismId") Long microorganismId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("delete from Isolate i where i.dataUpload.id = :uploadId")
+    int deleteByUploadId(@Param("uploadId") Long uploadId);
+
     /** Establecimientos donde se atendieron los pacientes de un distrito, del que más recibe al que menos. */
     @Query("""
         select new pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow(f.id, f.name, count(i))
@@ -53,4 +68,8 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from Isolate i where i.dataUpload.id = :uploadId")
     int deleteByDataUploadId(@Param("uploadId") Long uploadId);
+
+    /** Fecha de toma más reciente del establecimiento: el "hoy" de sus datos para evaluar alertas. */
+    @Query("select max(i.collectionDate) from Isolate i where i.facility.id = :facilityId")
+    Optional<LocalDate> findLatestCollectionDate(@Param("facilityId") Long facilityId);
 }

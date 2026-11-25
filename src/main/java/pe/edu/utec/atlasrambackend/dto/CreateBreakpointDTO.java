@@ -15,7 +15,11 @@ public record CreateBreakpointDTO(
         @NotBlank String standard,
         @NotBlank String version,
         @Positive BigDecimal susceptibleMax,
-        @Positive BigDecimal resistantMin
+        @Positive BigDecimal resistantMin,
+        /** Disco (mm): S si el halo ≥ este valor. Opcional. */
+        @Positive Integer diskSusceptibleMin,
+        /** Disco (mm): R si el halo ≤ este valor. Opcional. */
+        @Positive Integer diskResistantMax
 ) {}
 
 

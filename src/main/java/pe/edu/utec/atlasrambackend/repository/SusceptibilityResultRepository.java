@@ -1,8 +1,7 @@
 package pe.edu.utec.atlasrambackend.repository;
 
 import pe.edu.utec.atlasrambackend.model.SusceptibilityResult;
-import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
-import pe.edu.utec.atlasrambackend.dto.DistrictResistanceRow;
+import pe.edu.utec.atlasrambackend.dto.ResistanceCountRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,77 +12,19 @@ import java.util.List;
 
 public interface SusceptibilityResultRepository extends JpaRepository<SusceptibilityResult, Long> {
 
-    List<SusceptibilityResult> findByIsolateId(Long isolateId);
+    /** Ordenados por antibiótico: sin ORDER BY, PostgreSQL los devuelve en cualquier orden. */
+    List<SusceptibilityResult> findByIsolateIdOrderByAntibioticNameAsc(Long isolateId);
+
+    /** Borrado masivo de los resultados de una carga (se ejecuta antes que el de sus aislamientos). */
+    @Modifying(flushAutomatically = true)
+    @Query("delete from SusceptibilityResult r where r.isolate.id in "
+            + "(select i.id from Isolate i where i.dataUpload.id = :uploadId)")
+    int deleteByUploadId(@Param("uploadId") Long uploadId);
 
     boolean existsByIsolateIdAndAntibioticId(Long isolateId, Long antibioticId);
 
-    @Query("""
-            select new pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO(
-                concat(m.genus, ' ', coalesce(m.species, '')),
-                a.name,
-                count(r),
-                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end),
-                (sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1.0 else 0.0 end) * 100.0) / count(r)
-            )
-            from SusceptibilityResult r
-            join r.isolate i
-            join i.microorganism m
-            join r.antibiotic a
-            where (:microorganismId is null or m.id = :microorganismId)
-              and (:districtId is null or i.aggregationDistrictId = :districtId)
-              and i.collectionDate between :from and :to
-            group by m.genus, m.species, a.name
-            having count(r) >= 30
-            order by a.name
-            """)
-    List<AntibiogramResponseDTO> calculateAntibiogram(
-            @Param("microorganismId") Long microorganismId,
-            @Param("districtId") Long districtId,
-            @Param("from") LocalDate from,
-            @Param("to") LocalDate to);
 
-    /** Igual que calculateAntibiogram, pero sobre todos los aislamientos de los establecimientos dados. */
-    @Query("""
-            select new pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO(
-                concat(m.genus, ' ', coalesce(m.species, '')),
-                a.name,
-                count(r),
-                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end),
-                (sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1.0 else 0.0 end) * 100.0) / count(r)
-            )
-            from SusceptibilityResult r
-            join r.isolate i
-            join i.microorganism m
-            join r.antibiotic a
-            where i.facility.id in :facilityIds
-              and i.collectionDate between :from and :to
-            group by m.genus, m.species, a.name
-            having count(r) >= 30
-            order by a.name
-            """)
-    List<AntibiogramResponseDTO> calculateAntibiogramForFacilities(
-            @Param("facilityIds") List<Long> facilityIds,
-            @Param("from") LocalDate from,
-            @Param("to") LocalDate to);
 
-    @Query("""
-            select new pe.edu.utec.atlasrambackend.dto.DistrictResistanceRow(
-                i.aggregationDistrictId,
-                count(r),
-                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end)
-            )
-            from SusceptibilityResult r
-            join r.isolate i
-            where i.microorganism.id = :microorganismId
-              and r.antibiotic.id = :antibioticId
-              and i.collectionDate between :from and :to
-            group by i.aggregationDistrictId
-            """)
-    List<DistrictResistanceRow> calculateResistanceByDistrict(
-            @Param("microorganismId") Long microorganismId,
-            @Param("antibioticId") Long antibioticId,
-            @Param("from") LocalDate from,
-            @Param("to") LocalDate to);
 
     @Query("""
             select count(r) from SusceptibilityResult r
@@ -98,4 +39,22 @@ public interface SusceptibilityResultRepository extends JpaRepository<Susceptibi
             where r.isolate.id in (select i.id from Isolate i where i.dataUpload.id = :uploadId)
             """)
     int deleteByDataUploadId(@Param("uploadId") Long uploadId);
+
+    /** Probados y resistentes por combinación en un establecimiento y periodo; insumo del detector de brotes. */
+    @Query("""
+            select new pe.edu.utec.atlasrambackend.dto.ResistanceCountRow(
+                i.microorganism.id,
+                r.antibiotic.id,
+                count(r),
+                sum(case when r.interpretation = pe.edu.utec.atlasrambackend.model.Interpretation.RESISTANT then 1 else 0 end)
+            )
+            from SusceptibilityResult r
+            join r.isolate i
+            where i.facility.id = :facilityId
+              and i.collectionDate between :from and :to
+            group by i.microorganism.id, r.antibiotic.id
+            """)
+    List<ResistanceCountRow> countByCombination(@Param("facilityId") Long facilityId,
+                                                @Param("from") LocalDate from,
+                                                @Param("to") LocalDate to);
 }

@@ -6,6 +6,7 @@ import pe.edu.utec.atlasrambackend.model.Isolate;
 import pe.edu.utec.atlasrambackend.model.Specimen;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -17,9 +18,19 @@ public final class IsolateSpecifications {
     private IsolateSpecifications() {
     }
 
-    public static Specification<Isolate> withFilters(Long facilityId, Long microorganismId, Specimen specimen) {
+    /**
+     * @param allowedFacilityIds establecimientos visibles para el usuario; null no restringe
+     *                           y una colección vacía no devuelve ningún aislamiento.
+     */
+    public static Specification<Isolate> withFilters(Long facilityId, Long microorganismId, Specimen specimen,
+                                                     Collection<Long> allowedFacilityIds) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (allowedFacilityIds != null) {
+                predicates.add(allowedFacilityIds.isEmpty()
+                        ? cb.disjunction()
+                        : root.get("facility").get("id").in(allowedFacilityIds));
+            }
             if (facilityId != null) {
                 predicates.add(cb.equal(root.get("facility").get("id"), facilityId));
             }

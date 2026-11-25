@@ -5,11 +5,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import pe.edu.utec.atlasrambackend.repository.DataUploadRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
+import pe.edu.utec.atlasrambackend.repository.StockItemRepository;
+import pe.edu.utec.atlasrambackend.repository.StockLotRepository;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -22,13 +26,20 @@ class FacilityAccessEvaluatorTest {
 
     private UserRepository userRepository;
     private IsolateRepository isolateRepository;
+    private DataUploadRepository uploadRepository;
+    private StockItemRepository stockItemRepository;
+    private StockLotRepository stockLotRepository;
     private FacilityAccessEvaluator evaluator;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
         isolateRepository = mock(IsolateRepository.class);
-        evaluator = new FacilityAccessEvaluator(userRepository, isolateRepository);
+        uploadRepository = mock(DataUploadRepository.class);
+        stockItemRepository = mock(StockItemRepository.class);
+        stockLotRepository = mock(StockLotRepository.class);
+        evaluator = new FacilityAccessEvaluator(userRepository, isolateRepository, uploadRepository,
+                stockItemRepository, stockLotRepository);
     }
 
     private static Authentication as(String email, String role) {
@@ -67,5 +78,66 @@ class FacilityAccessEvaluatorTest {
     @Test
     void sinAutenticacionNoHayAcceso() {
         assertThat(evaluator.canAccessIsolate(null, 10L)).isFalse();
+    }
+
+    @Test
+    void tecnicoSoloVeLosEstablecimientosAsignados() {
+        when(userRepository.findFacilityIdsByEmail(LAB_EMAIL)).thenReturn(Set.of(1L, 3L));
+
+        assertThat(evaluator.visibleFacilityIds(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN")))
+                .contains(Set.of(1L, 3L));
+    }
+
+    @Test
+    void epidemiologoVeTodaLaRedSinRestriccion() {
+        assertThat(evaluator.visibleFacilityIds(as("epi@atlasram.test", "ROLE_EPIDEMIOLOGIST"))).isEmpty();
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void tecnicoSinEstablecimientosNoVeNada() {
+        when(userRepository.findFacilityIdsByEmail(LAB_EMAIL)).thenReturn(Set.of());
+
+        assertThat(evaluator.visibleFacilityIds(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN")))
+                .contains(Set.of());
+    }
+
+    @Test
+    void tecnicoVeLasCargasDeSuEstablecimiento() {
+        when(uploadRepository.findFacilityIdById(412L)).thenReturn(Optional.of(1L));
+        when(userRepository.isAssignedToFacility(LAB_EMAIL, 1L)).thenReturn(true);
+
+        assertThat(evaluator.canAccessUpload(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN"), 412L)).isTrue();
+    }
+
+    @Test
+    void tecnicoNoVeLasCargasDeOtroEstablecimiento() {
+        // Sin este control, cambiando el número en /uploads/{id} se leía el registro de errores de otro hospital.
+        when(uploadRepository.findFacilityIdById(500L)).thenReturn(Optional.of(6L));
+        when(userRepository.isAssignedToFacility(LAB_EMAIL, 6L)).thenReturn(false);
+
+        assertThat(evaluator.canAccessUpload(as(LAB_EMAIL, "ROLE_LAB_TECHNICIAN"), 500L)).isFalse();
+    }
+
+    @Test
+    void farmaceuticoSoloOperaElInventarioDeSuEstablecimiento() {
+        String pharmacist = "farmacia.hnhu@atlasram.test";
+        when(stockItemRepository.findFacilityIdById(5L)).thenReturn(Optional.of(6L));
+        when(stockItemRepository.findFacilityIdById(7L)).thenReturn(Optional.of(1L));
+        when(userRepository.isAssignedToFacility(pharmacist, 6L)).thenReturn(true);
+        when(userRepository.isAssignedToFacility(pharmacist, 1L)).thenReturn(false);
+
+        assertThat(evaluator.canAccessStockItem(as(pharmacist, "ROLE_PHARMACIST"), 5L)).isTrue();
+        assertThat(evaluator.canAccessStockItem(as(pharmacist, "ROLE_PHARMACIST"), 7L)).isFalse();
+    }
+
+    @Test
+    void elLoteSeControlaPorElEstablecimientoDeSuItem() {
+        String pharmacist = "farmacia.hnhu@atlasram.test";
+        when(stockLotRepository.findFacilityIdById(90L)).thenReturn(Optional.of(1L));
+        when(userRepository.isAssignedToFacility(pharmacist, 1L)).thenReturn(false);
+
+        assertThat(evaluator.canAccessStockLot(as(pharmacist, "ROLE_PHARMACIST"), 90L)).isFalse();
+        assertThat(evaluator.canAccessStockLot(as(pharmacist, "ROLE_PHARMACIST"), null)).isFalse();
     }
 }

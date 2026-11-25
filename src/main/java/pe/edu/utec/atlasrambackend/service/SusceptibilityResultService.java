@@ -1,6 +1,5 @@
 package pe.edu.utec.atlasrambackend.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.CreateSusceptibilityResultDTO;
@@ -8,10 +7,11 @@ import pe.edu.utec.atlasrambackend.dto.SusceptibilityResultResponseDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.exception.DuplicateResourceException;
 import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
+import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.mapper.SusceptibilityResultMapper;
 import pe.edu.utec.atlasrambackend.model.Antibiotic;
-import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.Isolate;
+import pe.edu.utec.atlasrambackend.model.MicQualifier;
 import pe.edu.utec.atlasrambackend.model.SusceptibilityResult;
 import pe.edu.utec.atlasrambackend.repository.AntibioticRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
@@ -27,23 +27,17 @@ public class SusceptibilityResultService {
     private final AntibioticRepository antibioticRepository;
     private final InterpretationService interpretationService;
     private final SusceptibilityResultMapper resultMapper;
-    private final String standard;
-    private final String version;
 
     public SusceptibilityResultService(SusceptibilityResultRepository resultRepository,
                                        IsolateRepository isolateRepository,
                                        AntibioticRepository antibioticRepository,
                                        InterpretationService interpretationService,
-                                       SusceptibilityResultMapper resultMapper,
-                                       @Value("${breakpoints.standard}") String standard,
-                                       @Value("${breakpoints.version}") String version) {
+                                       SusceptibilityResultMapper resultMapper) {
         this.resultRepository = resultRepository;
         this.isolateRepository = isolateRepository;
         this.antibioticRepository = antibioticRepository;
         this.interpretationService = interpretationService;
         this.resultMapper = resultMapper;
-        this.standard = standard;
-        this.version = version;
     }
 
     @Transactional(readOnly = true)
@@ -51,20 +45,23 @@ public class SusceptibilityResultService {
         if (!isolateRepository.existsById(isolateId)) {
             throw new ResourceNotFoundException("Aislamiento", isolateId);
         }
-        return resultRepository.findByIsolateId(isolateId).stream()
+        return resultRepository.findByIsolateIdOrderByAntibioticNameAsc(isolateId).stream()
                 .map(resultMapper::toResponse)
                 .toList();
     }
 
     /**
-     * La interpretación oficial la calcula el sistema contra el punto de corte vigente.
-     * Si no existe punto de corte para esa combinación, el resultado se guarda con la CIM
-     * y sin interpretación, en lugar de rechazar el dato del laboratorio.
+     * La interpretación la calcula el sistema contra el punto de corte vigente. Si no hay punto de corte
+     * o la CIM no es concluyente, se guarda la del laboratorio marcada como LAB_REPORTED (sin sello de
+     * estándar). Si no hay ninguna de las dos, el resultado se rechaza.
      */
     @Transactional
     public SusceptibilityResultResponseDTO create(CreateSusceptibilityResultDTO dto) {
         if (dto.micValue() == null && dto.diskDiffusionMm() == null) {
             throw new BusinessRuleException("El resultado necesita una CIM o un diámetro de halo");
+        }
+        if (dto.micQualifier() != null && dto.micValue() == null) {
+            throw new BusinessRuleException("El calificador de la CIM requiere un valor de CIM");
         }
         if (resultRepository.existsByIsolateIdAndAntibioticId(dto.isolateId(), dto.antibioticId())) {
             throw new DuplicateResourceException(
@@ -75,32 +72,28 @@ public class SusceptibilityResultService {
         Antibiotic antibiotic = antibioticRepository.findById(dto.antibioticId())
                 .orElseThrow(() -> new ResourceNotFoundException("Antibiótico", dto.antibioticId()));
 
+        ParsedMic mic = dto.micValue() == null ? null
+                : new ParsedMic(dto.micQualifier() == null ? MicQualifier.EQ : dto.micQualifier(), dto.micValue());
+
+        InterpretationService.Resolution resolution = interpretationService
+                .resolve(mic, dto.diskDiffusionMm(), dto.reportedInterpretation(), isolate.getMicroorganism(), antibiotic)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No hay punto de corte (de CIM o de disco) para esa combinación, o el valor no es concluyente, "
+                                + "y el laboratorio no reportó interpretación"));
+
         SusceptibilityResult result = new SusceptibilityResult();
         result.setIsolate(isolate);
         result.setAntibiotic(antibiotic);
         result.setMicValue(dto.micValue());
+        result.setMicQualifier(mic == null ? null : mic.qualifier());
         result.setDiskDiffusionMm(dto.diskDiffusionMm());
         result.setReportedInterpretation(dto.reportedInterpretation());
-        applyInterpretation(result, isolate, antibiotic, dto);
+        result.setInterpretation(resolution.interpretation());
+        result.setInterpretationSource(resolution.source());
+        result.setBreakpointStandard(resolution.breakpointStandard());
+        result.setBreakpointVersion(resolution.breakpointVersion());
 
         return resultMapper.toResponse(resultRepository.save(result));
-    }
-
-    private void applyInterpretation(SusceptibilityResult result,
-                                     Isolate isolate,
-                                     Antibiotic antibiotic,
-                                     CreateSusceptibilityResultDTO dto) {
-        Interpretation interpretation = interpretationService
-                .interpret(dto.micValue(), isolate.getMicroorganism(), antibiotic, standard, version)
-                .orElse(dto.reportedInterpretation());
-        if (interpretation == null) {
-            throw new BusinessRuleException(
-                    "No hay punto de corte " + standard + " " + version
-                            + " para esa combinación y el laboratorio no reportó interpretación");
-        }
-        result.setInterpretation(interpretation);
-        result.setBreakpointStandard(standard);
-        result.setBreakpointVersion(version);
     }
 
     @Transactional

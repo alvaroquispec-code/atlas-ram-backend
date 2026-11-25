@@ -114,15 +114,26 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Interpretación trazable.** Cada resultado conserva la CIM cruda, la interpretación que reportó el laboratorio y la que calcula el sistema, junto con el estándar y la versión del punto de corte aplicado. Esto permite reinterpretar el histórico cuando cambie la norma.
 
-**Antibiograma acumulado.** Una consulta agregada calcula el porcentaje de resistencia por combinación de microorganismo y antibiótico, con filtros opcionales. Las combinaciones con menos de 30 aislamientos se omiten, como recomienda CLSI M39, lo que además reduce el riesgo de reidentificar pacientes en grupos pequeños.
+**Antibiograma acumulado.** Sigue la guía CLSI M39: cuenta solo el **primer aislamiento de cada paciente y especie** en el período (los cultivos repetidos de un mismo paciente suelen ser los más resistentes e inflarían el porcentaje), informa el porcentaje de sensibles y de resistentes con su **intervalo de confianza de Wilson al 95 %**, y omite las combinaciones con menos de 30 aislamientos, lo que además reduce el riesgo de reidentificar pacientes en grupos pequeños. Cada fila dice cuántos aislamientos repetidos se excluyeron y qué porcentaje tenía paciente identificado.
 
 **Hospitales de referencia.** Un distrito pequeño, por ejemplo sin hospital propio, rara vez reúne 30 resultados por combinación. En vez de mostrar un porcentaje poco confiable, `GET /antibiogram/referral` identifica los tres hospitales donde más se atienden los pacientes de ese distrito y devuelve el antibiograma de esos hospitales.
 
 **Búsqueda de aislamientos.** El listado acepta filtros opcionales y combinables (establecimiento, microorganismo y tipo de muestra), construidos con JPA Specifications, además de paginación y orden.
 
-**Alertas de resistencia.** Tras cada carga, el sistema revisa el antibiograma del establecimiento y notifica cuando una combinación supera el umbral configurado.
+**Alertas de brote.** Tras cada carga, el sistema compara las últimas 4 semanas de cada establecimiento con su propia línea base de 12 meses mediante una prueba binomial exacta, agrupa la señal por clase de antibiótico y mantiene una sola alerta activa por combinación; si la carga que la originó se revierte, la alerta se retira con el motivo.
 
-**Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos y usuarios públicos tienen permisos distintos.
+**Inventario de antibióticos.** La farmacia registra ingresos por lote, consumos (que salen primero del lote que vence antes, FEFO) y bajas. Para cada ítem, `GET /logistics/facilities/{id}/stock` calcula:
+
+- los indicadores de disponibilidad del SISMED (CPMA, meses de existencia y estado: desabastecido, substock, normostock, sobrestock o sin rotación);
+- el patrón de demanda (clasificación de Syntetos-Boylan-Croston) y el pronóstico que le corresponde (SES, SBA o TSB);
+- el pedido sugerido de una política de revisión periódica (R, S). S cubre la demanda de los R + L días con el nivel de servicio del ítem (99 % si es vital o Reserve AWaRe), y se estima con el bootstrap de Willemain, sin suponer normalidad;
+- la clase ABC-VEN, las unidades que vencerán sin usarse al ritmo actual y una señal de **presión de brote**. La señal aparece cuando hay una alerta activa en el establecimiento y un fármaco de escalamiento tiene poca cobertura.
+
+`GET /logistics/facilities/{id}/ddd` da el consumo en DDD por 100 camas-día por grupo AWaRe.
+
+**Procedencia de los datos.** Cada carga y cada aislamiento se marcan como reales (laboratorio) o sintéticos (prueba y demostración), y toda estadística se puede filtrar por procedencia. Los establecimientos guardan además su código único de IPRESS del RENIPRESS de SUSALUD (8 dígitos).
+
+**Control de acceso por rol.** Administradores, técnicos de laboratorio, epidemiólogos, farmacéuticos y usuarios públicos tienen permisos distintos.
 
 ### Tecnologías utilizadas
 
@@ -401,10 +412,30 @@ cd atlas-ram-backend
 cp .env.example .env          # completar contraseñas y JWT_SECRET
 docker compose up -d          # PostgreSQL en el puerto 5433
 export JWT_SECRET=...         # Spring no lee el .env: la variable debe estar en el entorno
+export PATIENT_KEY_SECRET=... # openssl rand -base64 32
 ./mvnw spring-boot:run        # Flyway crea las tablas (db/migration)
 docker cp db/seed/data.sql atlasram-db:/tmp/data.sql
 docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
+# opcional: inventario sintético de demostración (HNHU)
+docker cp db/seed/inventario_demo.sql atlasram-db:/tmp/inventario_demo.sql
+docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 ```
+
+### Pruebas
+
+`./mvnw test` corre dos niveles de pruebas:
+
+- **Unitarias** (con Mockito): estadística (Wilson, Cochran-Armitage, WISCA, bootstrap de Willemain), lectura de CSV y WHONET, reglas de carga, inventario y control de acceso.
+- **De integración** contra PostgreSQL real (`src/test/java/.../integration`):
+  - los triggers del distrito de agregación;
+  - las restricciones de la base (estados, procedencia, RENIPRESS, saldo de lotes, archivo duplicado, código de aislamiento único);
+  - las consultas SQL del antibiograma CLSI M39, la tendencia y el WISCA;
+  - el kardex FEFO;
+  - dos consumos simultáneos del mismo lote, para comprobar que nunca dejan stock negativo.
+
+  Corren sobre un PostgreSQL 16 desechable que levanta **Testcontainers** (Docker tiene que estar encendido), al que Flyway le aplica todas las migraciones desde cero. Así las pruebas nunca tocan la base de desarrollo y el CI prueba en cada push que un despliegue limpio funcione.
+
+**Prueba de humo.** `scripts/smoke.ps1` llama a los endpoints principales (antibiograma, tendencia, WISCA, alertas, cargas, inventario) contra un servidor en marcha y avisa si alguno falla: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke.ps1 -BaseUrl <url de la API>`.
 
 ### Variables de entorno
 
@@ -415,9 +446,51 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/data.sql
 | `SPRING_DATASOURCE_PASSWORD` | contraseña de la base |
 | `JWT_SECRET` | clave de firma en base64, mínimo 64 bytes |
 | `JWT_EXPIRATION_MS` | vigencia del token de acceso |
+| `PATIENT_KEY_SECRET` | secreto en base64 (mínimo 32 bytes) para seudonimizar el identificador de paciente con HMAC-SHA256 |
 | `JPA_DDL_AUTO` | modo de Hibernate sobre el esquema; por defecto `validate` (el esquema lo maneja Flyway) |
 | `MAIL_ENABLED` | activa el envío real de correos |
 | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` | servidor SMTP |
+
+### Formato del CSV de carga
+
+UTF-8, separado por comas o por punto y coma (Excel en español), con cabecera. Las columnas se reconocen
+por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fila = un antibiótico de un aislamiento.
+
+| Columna | Obligatoria | Ejemplo | Notas |
+|---|---|---|---|
+| `fecha_toma` | sí | `2026-08-20` o `20/08/2026` | no puede ser futura |
+| `tipo_muestra` | sí | `URINE`, `ORINA`, `SANGRE`, `LCR` | |
+| `codigo_microorganismo` | sí | `eco` | códigos WHONET |
+| `codigo_antibiotico` | sí | `MEM` | códigos WHONET |
+| `cim` | * | `<=0.25`, `>=16`, `0,5`, `4/76` | con calificador; coma decimal aceptada |
+| `halo_mm` | * | `19` | diámetro del halo en mm (difusión en disco); también `halo`, `diametro_halo`, `disco_mm` |
+| `interpretacion_laboratorio` | * | `S`, `I`, `R`, `RESISTENTE` | se usa si ni la CIM ni el halo bastan para interpretar |
+| `id_paciente` | recomendada | historia clínica | se guarda solo un seudónimo HMAC; permite la regla del primer aislamiento (CLSI M39) |
+| `id_aislamiento` | recomendada | número de muestra | evita mezclar pacientes y registrar dos veces el mismo aislamiento |
+| `codigo_establecimiento` | no | `HNCH` | si viene, debe ser el de la carga |
+| `edad`, `sexo`, `ubigeo_residencia` | no | `47`, `F`, `150135` | |
+
+\* Cada fila necesita una CIM o un halo interpretables, o la interpretación del laboratorio.
+
+**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
+
+**Interpretación por disco.** Orden: CIM concluyente → halo → interpretación del laboratorio. En el disco el sentido es el contrario al de la CIM: sensible si el halo ≥ `diskSusceptibleMin`, resistente si ≤ `diskResistantMax`, intermedio entre ambos. Esos dos valores se cargan por punto de corte (`POST /breakpoints`) desde la tabla vigente de CLSI M100; el sistema no trae valores de disco precargados para no publicar puntos de corte desactualizados.
+
+**Procedencia.** `POST /uploads` recibe `origin=REAL` o `origin=SYNTHETIC` (por defecto `SYNTHETIC`: el sistema nunca presume que un dato es real). Todas las consultas del antibiograma, la tendencia, el WISCA y el mapa aceptan `origin` para calcular solo con datos reales, y cada fila del antibiograma informa `realDataPercentage`. El seed completo es `SYNTHETIC`.
+
+### Interoperabilidad (HL7 FHIR, LOINC y SNOMED CT)
+
+Un hospital trabaja con varios sistemas: el equipo automatizado, uno o más sistemas de laboratorio (LIS) y el sistema hospitalario (HIS). Para que Atlas RAM pueda conversar con ellos, cada aislamiento se exporta en **HL7 FHIR R4** (`GET /fhir/isolates/{id}`, `application/fhir+json`): un `Bundle` con el informe (`DiagnosticReport`), la muestra (`Specimen`), el microorganismo identificado y una `Observation` por antibiótico.
+
+| Dato | Estándar | Ejemplo |
+|---|---|---|
+| Microorganismo | SNOMED CT | *Klebsiella pneumoniae* → `56415008` |
+| Prueba por CIM | LOINC | Meropenem por CIM → `6652-2` |
+| Prueba por disco | LOINC | Amikacina por disco → `13-3` |
+| Valor | UCUM | `>= 16 ug/mL`, `19 mm` (el comparador de la CIM se conserva) |
+| Interpretación | HL7 v3 ObservationInterpretation | `S`, `I`, `R` |
+
+Los 21 antibióticos y 8 microorganismos del catálogo tienen sus códigos, verificados uno por uno contra loinc.org y SNOMED CT International (`fhir/Terminology.java`). Un código que no esté verificado no se inventa: se envía solo el texto. La exportación no incluye ningún dato del paciente.
 
 ### Endpoints principales
 
@@ -432,8 +505,16 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
+| `GET` | `/fhir/isolates/{id}` | técnico, epidemiólogo o administrador (de su establecimiento): el aislamiento y su antibiograma en HL7 FHIR R4 |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
+| `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |
+| `GET` | `/logistics/facilities/{id}/ddd?from&to&bedDays` | farmacéutico (su establecimiento), epidemiólogo o administrador |
+| `POST` | `/logistics/items`, `/logistics/items/{id}/receipts`, `/logistics/items/{id}/consumptions`, `/logistics/lots/{id}/write-off` | farmacéutico (su establecimiento) o administrador |
+| `POST` | `/logistics/facilities/{id}/movements/import` (CSV, campo `file`) | farmacéutico (su establecimiento) o administrador |
+
+**Importar el kardex.** La farmacia puede subir el kardex que ya lleva (exportado de su sistema o de Excel): una fila por movimiento, con columnas `fecha`, `tipo` (`INGRESO`/`ENTRADA`, `CONSUMO`/`SALIDA`/`DISPENSACION`, `BAJA`/`MERMA`), `codigo_antibiotico`, `cantidad` y, según el tipo, `lote`, `vencimiento`, `presentacion` y `nota`. Se aceptan varios nombres por columna (por ejemplo "Fecha de vencimiento" u "Observación"). Las filas se aplican por fecha y, el mismo día, primero los ingresos; cada una pasa por las mismas reglas del kardex manual (FEFO, sin stock negativo) y las que fallan se devuelven con su número de línea.
+| `GET` | `/logistics/items/{id}/lots`, `/logistics/items/{id}/movements` | farmacéutico (su establecimiento), epidemiólogo o administrador |
 
 Usuarios de prueba del seed: `admin@atlasram.test`, contraseña `AtlasRam2026!`.
 
@@ -473,7 +554,7 @@ Aprendimos que las decisiones de modelado tienen consecuencias clínicas: guarda
 
 ### Datos de prueba
 
-Los datos del seed son **sintéticos**. Los catálogos usan nomenclatura real (códigos WHONET, ubigeo del INEI), y las tasas de resistencia están calibradas con estudios peruanos publicados. No corresponden a pacientes reales. El detalle está en `db/seed/CALIBRACION.md`.
+Los datos del seed son **sintéticos**. Los catálogos usan nomenclatura real (códigos WHONET, ubigeo del INEI), y las tasas de resistencia están calibradas con estudios peruanos publicados. No corresponden a pacientes reales. El detalle está en `db/seed/CALIBRACION.md`. El inventario de `db/seed/inventario_demo.sql` (consumos, costos y camas) también es sintético e ilustrativo; lo genera `gen_inventario_demo.py`.
 
 ### Licencia
 
@@ -488,3 +569,10 @@ MIT.
 5. Krapp F, Cuicapuza D, Salvatierra G, et al. *Emerging carbapenem-resistant Klebsiella pneumoniae in a tertiary care hospital in Lima, Peru*. Microbiology Spectrum. 2025;13(2). doi:10.1128/spectrum.01825-24
 6. Montañez-Valverde RA, Montenegro-Idrogo JJ, Arenas-Significación FR, Vásquez-Alva R. *Infección urinaria alta comunitaria por E. coli resistente a ciprofloxacino: características asociadas en pacientes de un hospital nacional en Perú*. Anales de la Facultad de Medicina. 2015;76(4):385-391.
 7. Ley N.º 29733, Ley de Protección de Datos Personales del Perú.
+8. Syntetos AA, Boylan JE, Croston JD. *On the categorization of demand patterns*. Journal of the Operational Research Society. 2005;56(5):495-503.
+9. Syntetos AA, Boylan JE. *The accuracy of intermittent demand estimates*. International Journal of Forecasting. 2005;21(2):303-314.
+10. Teunter RH, Syntetos AA, Babai MZ. *Intermittent demand: Linking forecasting to inventory obsolescence*. European Journal of Operational Research. 2011;214(3):606-615.
+11. Willemain TR, Smart CN, Schwarz HF. *A new approach to forecasting intermittent demand for service parts inventories*. International Journal of Forecasting. 2004;20(3):375-387.
+12. Silver EA, Pyke DF, Thomas DJ. *Inventory and Production Management in Supply Chains*. 4.ª ed. CRC Press; 2017.
+13. Management Sciences for Health. *MDS-3: Managing Access to Medicines and Health Technologies*. 2012.
+14. Organización Mundial de la Salud. *AWaRe classification of antibiotics* (2023) y WHO Collaborating Centre for Drug Statistics Methodology, *ATC/DDD Index*.

@@ -14,6 +14,8 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
 
     boolean existsByCode(String code);
 
+    boolean existsByRenipressCode(String renipressCode);
+
     List<Facility> findByDistrictId(Long districtId);
 
     @Query("""

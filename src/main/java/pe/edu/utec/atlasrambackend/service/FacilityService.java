@@ -66,6 +66,7 @@ public class FacilityService {
         if (facilityRepository.existsByCode(dto.code())) {
             throw new DuplicateResourceException("un establecimiento", "el código", dto.code());
         }
+        checkRenipress(null, dto.renipressCode());
         Facility saved = facilityRepository.save(
                 facilityMapper.toEntity(dto, getDistrictOrThrow(dto.districtId())));
         return facilityMapper.toResponse(saved);
@@ -81,12 +82,27 @@ public class FacilityService {
         facility.setCode(dto.code());
         facility.setName(dto.name());
         facility.setDistrict(getDistrictOrThrow(dto.districtId()));
+        checkRenipress(facility.getRenipressCode(), dto.renipressCode());
+        facility.setRenipressCode(dto.renipressCode() == null || dto.renipressCode().isBlank()
+                ? null : dto.renipressCode().trim());
+        facility.setBeds(dto.beds());
+        facility.setOccupancyRate(dto.occupancyRate());
         return facilityMapper.toResponse(facility);
     }
 
     @Transactional
     public void delete(Long id) {
         facilityRepository.delete(getOrThrow(id));
+    }
+
+    /** Un código RENIPRESS identifica a una sola IPRESS. current: el que ya tiene el establecimiento (o null). */
+    private void checkRenipress(String current, String requested) {
+        if (requested == null || requested.isBlank() || requested.trim().equals(current)) {
+            return;
+        }
+        if (facilityRepository.existsByRenipressCode(requested.trim())) {
+            throw new DuplicateResourceException("un establecimiento", "el código RENIPRESS", requested.trim());
+        }
     }
 
     private Facility getOrThrow(Long id) {

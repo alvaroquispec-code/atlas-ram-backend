@@ -1,5 +1,9 @@
 package pe.edu.utec.atlasrambackend.dto;
 
+/**
+ * Una fila del CSV de carga, con los valores tal como llegaron (recortados). Las columnas opcionales
+ * que el archivo no trae llegan como cadena vacía.
+ */
 public record CsvRowDTO(
         int lineNumber,
         String collectionDate,
@@ -11,7 +15,9 @@ public record CsvRowDTO(
         String microorganismCode,
         String antibioticCode,
         String micValue,
-        String reportedInterpretation
+        String reportedInterpretation,
+        String patientId,
+        String labIsolateId,
+        /** Diámetro del halo en mm (difusión en disco); vacío si no se informó. */
+        String diskMm
 ) {}
-
-

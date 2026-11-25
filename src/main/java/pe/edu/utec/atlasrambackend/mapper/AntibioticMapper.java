@@ -13,7 +13,8 @@ public class AntibioticMapper {
                 a.getId(),
                 a.getCode(),
                 a.getName(),
-                a.getAntibioticClass()
+                a.getAntibioticClass(),
+                a.getAwareCategory()
         );
     }
 
@@ -22,6 +23,7 @@ public class AntibioticMapper {
         a.setCode(dto.code());
         a.setName(dto.name());
         a.setAntibioticClass(dto.antibioticClass());
+        a.setAwareCategory(dto.awareCategory());
         return a;
     }
 }

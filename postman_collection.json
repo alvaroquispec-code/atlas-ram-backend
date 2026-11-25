@@ -54,6 +54,26 @@
     {
       "key": "userId",
       "value": "2"
+    },
+    {
+      "key": "pharmacistEmail",
+      "value": "farmacia.hnhu@atlasram.test"
+    },
+    {
+      "key": "pharmacistToken",
+      "value": ""
+    },
+    {
+      "key": "alertId",
+      "value": ""
+    },
+    {
+      "key": "stockItemId",
+      "value": ""
+    },
+    {
+      "key": "lotId",
+      "value": ""
     }
   ],
   "item": [
@@ -2183,6 +2203,109 @@
               }
             }
           ]
+        },
+        {
+          "name": "Carga WHONET sintética",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads"
+              ]
+            },
+            "description": "Exportación de WHONET (una columna por antibiótico, por ejemplo MEM_NM o CIP_ND5): se reconoce sola. origin = REAL o SYNTHETIC (por defecto SYNTHETIC). Elegir el archivo prueba-whonet.csv.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "facilityId",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "origin",
+                  "value": "SYNTHETIC",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{technicianToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 202\", () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set(\"uploadId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revertir una carga (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/{{uploadId}}/revert",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads",
+                "{{uploadId}}",
+                "revert"
+              ]
+            },
+            "description": "Borra los aislamientos de la carga, la marca REVERTED con auditoría y reevalúa las alertas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Archivo de prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -2682,6 +2805,1013 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12. Antibiograma avanzado",
+      "description": "Tendencia, tratamiento empírico (WISCA), hospitales de referencia, mapa y filtro de procedencia. Consultas públicas.",
+      "item": [
+        {
+          "name": "Antibiograma solo con datos reales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram?microorganismId=1&from=2025-09-01&to=2026-08-31&origin=REAL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram"
+              ],
+              "query": [
+                {
+                  "key": "microorganismId",
+                  "value": "1"
+                },
+                {
+                  "key": "from",
+                  "value": "2025-09-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-08-31"
+                },
+                {
+                  "key": "origin",
+                  "value": "REAL"
+                }
+              ]
+            },
+            "description": "Con origin=REAL solo cuentan los aislamientos de laboratorios reales. Con el seed (todo sintético) devuelve una lista vacía: el sistema no presenta datos sintéticos como reales.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es una lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Antibiograma con % de datos reales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram?microorganismId=1&from=2025-09-01&to=2026-08-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram"
+              ],
+              "query": [
+                {
+                  "key": "microorganismId",
+                  "value": "1"
+                },
+                {
+                  "key": "from",
+                  "value": "2025-09-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-08-31"
+                }
+              ]
+            },
+            "description": "Cada fila trae el % de sensibles con su intervalo de Wilson, los repetidos excluidos (CLSI M39) y realDataPercentage.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae intervalo y procedencia\", () => { const r = pm.response.json()[0]; pm.expect(r).to.have.property(\"susceptibleCiLow\"); pm.expect(r).to.have.property(\"realDataPercentage\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tendencia (Cochran-Armitage)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram/trend?microorganismId=2&antibioticId=11&facilityId=6&from=2024-09-01&to=2026-08-31&interval=MONTH",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram",
+                "trend"
+              ],
+              "query": [
+                {
+                  "key": "microorganismId",
+                  "value": "2"
+                },
+                {
+                  "key": "antibioticId",
+                  "value": "11"
+                },
+                {
+                  "key": "facilityId",
+                  "value": "6"
+                },
+                {
+                  "key": "from",
+                  "value": "2024-09-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-08-31"
+                },
+                {
+                  "key": "interval",
+                  "value": "MONTH"
+                }
+              ]
+            },
+            "description": "K. pneumoniae · meropenem en el HNHU: % de resistentes por mes y prueba de tendencia. Esperado: INCREASING, ≈ +27,9 puntos por año, p < 0,001.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tendencia creciente\", () => pm.expect(pm.response.json().trend.direction).to.eql(\"INCREASING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "WISCA bacteriemia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram/wisca?syndrome=BACTEREMIA&from=2025-09-01&to=2026-08-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram",
+                "wisca"
+              ],
+              "query": [
+                {
+                  "key": "syndrome",
+                  "value": "BACTEREMIA"
+                },
+                {
+                  "key": "from",
+                  "value": "2025-09-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-08-31"
+                }
+              ]
+            },
+            "description": "Probabilidad bayesiana de que cada régimen cubra la bacteriemia (10 000 simulaciones). regimens opcional, por ejemplo MEM,TZP%2BAMK.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Regímenes ordenados por cobertura\", () => { const r = pm.response.json().regimens; pm.expect(r[0].coverageMedian).to.be.at.least(r[r.length - 1].coverageMedian); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hospitales de referencia de un distrito",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram/referral?districtId=4&from=2024-09-01&to=2026-08-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram",
+                "referral"
+              ],
+              "query": [
+                {
+                  "key": "districtId",
+                  "value": "4"
+                },
+                {
+                  "key": "from",
+                  "value": "2024-09-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-08-31"
+                }
+              ]
+            },
+            "description": "Antibiograma de los 3 hospitales que más pacientes del distrito atienden.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resistencia por distrito (mapa)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/antibiogram/by-district?microorganismId=1&antibioticId=6&from=2025-01-01&to=2025-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "antibiogram",
+                "by-district"
+              ],
+              "query": [
+                {
+                  "key": "microorganismId",
+                  "value": "1"
+                },
+                {
+                  "key": "antibioticId",
+                  "value": "6"
+                },
+                {
+                  "key": "from",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Un valor por distrito; los que no llegan a 30 vienen con sufficientData = false.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13. Alertas de brote",
+      "description": "Detección de aumentos de resistencia por establecimiento (prueba binomial exacta contra la línea base de 12 meses).",
+      "item": [
+        {
+          "name": "Reevaluar un periodo (genera la alerta de demo)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/replay?facilityId=6&from=2026-03-02&to=2026-06-29&stepDays=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "replay"
+              ],
+              "query": [
+                {
+                  "key": "facilityId",
+                  "value": "6"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-03-02"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-06-29"
+                },
+                {
+                  "key": "stepDays",
+                  "value": "7"
+                }
+              ]
+            },
+            "description": "Repite la evaluación semana a semana. En el seed detecta el brote de K. pneumoniae resistente a carbapenémicos del HNHU (27/04/2026) y deja la alerta abierta. Requiere ADMIN o EPIDEMIOLOGIST."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Detecta al menos una alerta\", () => pm.expect(pm.response.json().length).to.be.above(0));",
+                  "const a = pm.response.json(); if (a.length) pm.collectionVariables.set(\"alertId\", a[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alertas abiertas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/alerts?status=OPEN",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "OPEN"
+                }
+              ]
+            },
+            "description": "Un técnico solo ve las de sus establecimientos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reconocer una alerta",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/{{alertId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "{{alertId}}",
+                "status"
+              ]
+            },
+            "description": "OPEN → ACKNOWLEDGED → CLOSED. Una alerta cerrada no se reabre. Cerrarla quita la presión de brote del inventario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACKNOWLEDGED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14. Inventario de antibióticos",
+      "description": "Kardex FEFO, indicadores SISMED, reposición (R, S), vencimientos, DDD y presión de brote. Lectura: farmacéutico (su establecimiento), epidemiólogo o admin. Requiere cargar db/seed/inventario_demo.sql.",
+      "item": [
+        {
+          "name": "Iniciar sesión (farmacia HNHU)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Usuario del seed de inventario, asignado solo al HNHU. Guarda pharmacistToken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{pharmacistEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"pharmacistToken\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tablero de inventario del HNHU",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/facilities/6/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "facilities",
+                "6",
+                "stock"
+              ]
+            },
+            "description": "Por ítem: estado SISMED, patrón de demanda, pedido sugerido, unidades por vencer y presión de brote.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pharmacistToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"8 ítems en la demo\", () => pm.expect(pm.response.json().itemCount).to.eql(8));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro hospital: prohibido para la farmacia del HNHU",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/facilities/1/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "facilities",
+                "1",
+                "stock"
+              ]
+            },
+            "description": "Control de acceso por establecimiento (BOLA).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pharmacistToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consumo DDD por 100 camas-día",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/facilities/6/ddd?from=2026-05-01&to=2026-10-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "facilities",
+                "6",
+                "ddd"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-05-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31"
+                }
+              ]
+            },
+            "description": "Por grupo AWaRe. Días-cama: camas × ocupación × días, o el parámetro bedDays.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pharmacistToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear ítem",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items"
+              ]
+            },
+            "description": "R y L opcionales (30 y 15 días por defecto).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facilityId\": 6,\n  \"antibioticId\": 15,\n  \"presentation\": \"Tableta 500 mg\",\n  \"gramsPerUnit\": 0.5,\n  \"dddGrams\": null,\n  \"unitCost\": 0.8,\n  \"venClass\": \"NON_ESSENTIAL\",\n  \"reviewPeriodDays\": 30,\n  \"leadTimeDays\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"stockItemId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ingreso de un lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items/{{stockItemId}}/receipts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items",
+                "{{stockItemId}}",
+                "receipts"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lotNumber\": \"LVX-001\",\n  \"expiryDate\": \"2028-12-31\",\n  \"quantity\": 100,\n  \"receivedOn\": \"2026-11-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"lotId\", pm.response.json().lotId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consumo (FEFO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items/{{stockItemId}}/consumptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items",
+                "{{stockItemId}}",
+                "consumptions"
+              ]
+            },
+            "description": "Sale primero del lote que vence antes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10,\n  \"consumedOn\": \"2026-11-02\",\n  \"note\": \"Hospitalización\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consumo mayor al stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items/{{stockItemId}}/consumptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items",
+                "{{stockItemId}}",
+                "consumptions"
+              ]
+            },
+            "description": "Se rechaza completo: nunca queda stock negativo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 99999,\n  \"consumedOn\": \"2026-11-02\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lotes del ítem",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items/{{stockItemId}}/lots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items",
+                "{{stockItemId}}",
+                "lots"
+              ]
+            },
+            "description": "Con las unidades en riesgo de vencer de cada lote."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kardex del ítem",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/items/{{stockItemId}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "items",
+                "{{stockItemId}}",
+                "movements"
+              ]
+            },
+            "description": "Del movimiento más reciente al más antiguo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Baja de un lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/lots/{{lotId}}/write-off",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "lots",
+                "{{lotId}}",
+                "write-off"
+              ]
+            },
+            "description": "Sin quantity se da de baja todo el saldo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"writtenOffOn\": \"2026-11-03\",\n  \"reason\": \"Deterioro en almacén (prueba)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Importar kardex (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logistics/facilities/6/movements/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logistics",
+                "facilities",
+                "6",
+                "movements",
+                "import"
+              ]
+            },
+            "description": "Kardex de la farmacia: fecha, tipo (INGRESO, CONSUMO, BAJA), codigo_antibiotico, cantidad, lote, vencimiento. Elegir prueba-kardex.csv. Devuelve filas aplicadas y errores por línea.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{pharmacistToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Informa filas aplicadas\", () => pm.expect(pm.response.json()).to.have.property(\"processedRows\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "15. Interoperabilidad (HL7 FHIR)",
+      "description": "Aislamiento y antibiograma en FHIR R4 con LOINC y SNOMED CT.",
+      "item": [
+        {
+          "name": "Aislamiento en FHIR R4",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/fhir+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fhir/isolates/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fhir",
+                "isolates",
+                "1"
+              ]
+            },
+            "description": "Bundle con DiagnosticReport, Specimen, microorganismo (SNOMED CT) y una Observation por antibiótico (LOINC, valor UCUM, interpretación S/I/R). Sin datos del paciente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es un Bundle FHIR\", () => pm.expect(pm.response.json().resourceType).to.eql(\"Bundle\"));",
+                  "pm.test(\"Sin recurso Patient\", () => pm.expect(pm.response.text()).to.not.include(\"\\\"Patient\\\"\"));"
                 ]
               }
             }

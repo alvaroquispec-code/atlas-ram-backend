@@ -3,6 +3,7 @@ package pe.edu.utec.atlasrambackend.dto;
 import pe.edu.utec.atlasrambackend.model.Specimen;
 
 import java.time.LocalDate;
+import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
 public record IsolateResponseDTO(
         Long id,
@@ -14,5 +15,8 @@ public record IsolateResponseDTO(
         String districtUbigeo,
         String districtName,
         String microorganismName,
-        Long dataUploadId
+        Long dataUploadId,
+        String labIsolateId,
+        boolean patientIdentified,
+        DataOrigin dataOrigin
 ) {}
