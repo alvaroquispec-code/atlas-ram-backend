@@ -406,7 +406,7 @@ Prueba rápida: `GET https://3-85-201-152.sslip.io/api/v1/districts`
 Cada push a `main` que pasa el CI se despliega solo (`.github/workflows/deploy.yml`):
 
 1. GitHub Actions corre las pruebas (unitarias y de integración contra PostgreSQL real).
-2. El job de despliegue pide a AWS una **credencial temporal por OIDC**: no hay llaves de AWS guardadas en GitHub. El rol solo puede subir a `releases/` del bucket y ordenar comandos a esta instancia, y solo lo puede asumir el entorno `production` de este repositorio.
+2. El job de despliegue pide a AWS una **credencial temporal por OIDC**: no hay llaves de AWS guardadas en GitHub. El rol solo puede subir a `releases/` del bucket y ordenar comandos a esta instancia, y solo lo puede asumir el entorno `production` de este repositorio, identificado por su ID numérico inmutable (formato de *subject* inmutable de GitHub): aunque el repositorio se borre y otro se cree con el mismo nombre, no hereda el acceso.
 3. El jar se guarda en S3 con el hash del commit, así cada versión desplegada es trazable y se puede volver a ella.
 4. **AWS Systems Manager** ejecuta `scripts/deploy-remote.sh` en el servidor, sin puerto 22 abierto:
    respalda la base con `pg_dump`, cambia el jar, reinicia el servicio y prueba la salud durante 3 minutos.
