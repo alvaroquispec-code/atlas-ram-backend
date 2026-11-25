@@ -524,6 +524,8 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `PUT` | `/users/{id}/password` | administrador: restablece la contraseña de un usuario y cierra sus sesiones |
 | `GET` | `/districts`, `/microorganisms`, `/antibiotics`, `/facilities` | público |
 | `GET` | `/standards` | público: edición de CLSI M100 con que se interpretan las CIM, la norma de agregación (CLSI M39) y las tablas de fenotipos esperados de EUCAST |
+| `GET` | `/breakpoints/editions` | autenticado: ediciones de puntos de corte cargadas y cuál está activa |
+| `POST` | `/breakpoints/reinterpret?version=&apply=` | administrador: reinterpreta las CIM y halos guardados con una edición; `apply=false` es vista previa, `apply=true` solo con la edición activa |
 | `GET` | `/antibiogram` | público |
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
