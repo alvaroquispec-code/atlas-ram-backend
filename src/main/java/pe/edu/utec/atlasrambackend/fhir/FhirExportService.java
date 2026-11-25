@@ -122,11 +122,9 @@ public class FhirExportService {
         Map<String, Object> concept = new LinkedHashMap<>();
         Terminology.loinc(code).ifPresent(pair -> {
             if (byMic) {
-                concept.put("coding", List.of(coding(Terminology.LOINC, pair.mic(),
-                        r.getAntibiotic().getName() + " [Susceptibility] by Minimum inhibitory concentration (MIC)")));
+                concept.put("coding", List.of(coding(Terminology.LOINC, pair.mic(), pair.micDisplay())));
             } else if (byDisk) {
-                concept.put("coding", List.of(coding(Terminology.LOINC, pair.disk(),
-                        r.getAntibiotic().getName() + " [Susceptibility] by Disk diffusion (KB)")));
+                concept.put("coding", List.of(coding(Terminology.LOINC, pair.disk(), pair.diskDisplay())));
             }
         });
         concept.put("text", r.getAntibiotic().getName() + " (" + code + ")");

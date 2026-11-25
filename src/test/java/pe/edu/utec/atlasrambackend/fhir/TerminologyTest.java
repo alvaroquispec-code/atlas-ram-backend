@@ -33,6 +33,15 @@ class TerminologyTest {
         assertThat(Terminology.loinc("amk").orElseThrow().mic()).isEqualTo("12-5");
         assertThat(Terminology.snomed("KPN").orElseThrow()).isEqualTo("56415008");
         assertThat(Terminology.loinc("XYZ")).isEmpty();
+    }
+
+    @Test
+    void elDisplayEsElNombreOficialDeLoincEnIngles() {
+        // Long Common Name de loinc.org: el componente va en inglés y las combinaciones con "+".
+        assertThat(Terminology.loinc("TZP").orElseThrow().micDisplay())
+                .isEqualTo("Piperacillin+Tazobactam [Susceptibility] by Minimum inhibitory concentration (MIC)");
+        assertThat(Terminology.loinc("SXT").orElseThrow().diskDisplay())
+                .isEqualTo("Trimethoprim+Sulfamethoxazole [Susceptibility] by Disk diffusion (KB)");
         assertThat(Terminology.snomed(null)).isEmpty();
     }
 }

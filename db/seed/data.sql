@@ -114033,4 +114033,7 @@ SELECT setval(pg_get_serial_sequence('data_upload', 'id'), (SELECT MAX(id) FROM 
 SELECT setval(pg_get_serial_sequence('isolate', 'id'), (SELECT MAX(id) FROM isolate));
 SELECT setval(pg_get_serial_sequence('susceptibility_result', 'id'), (SELECT MAX(id) FROM susceptibility_result));
 
+-- El tope del panel equivale a ">=" (MIC_CAP): mismo criterio que la migracion V13
+UPDATE susceptibility_result r SET mic_qualifier = 'GE' FROM isolate i, antibiotic a, (VALUES ('ETP', 8), ('MEM', 16), ('IPM', 16), ('CIP', 4), ('LVX', 8), ('GEN', 16), ('AMK', 64), ('CRO', 64), ('CAZ', 64), ('FEP', 64), ('TZP', 128), ('AMP', 32), ('SAM', 32), ('CZO', 64), ('OXA', 4), ('VAN', 32), ('LNZ', 8), ('CLI', 8), ('ERY', 8), ('NIT', 512), ('SXT', 16)) AS cap(code, mic) WHERE i.id = r.isolate_id AND a.id = r.antibiotic_id AND a.code = cap.code AND i.data_origin = 'SYNTHETIC' AND r.mic_qualifier IS NULL AND r.mic_value = cap.mic;
+
 COMMIT;

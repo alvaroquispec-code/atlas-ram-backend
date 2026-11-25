@@ -22,32 +22,45 @@ public final class Terminology {
     public static final String LOINC = "http://loinc.org";
     public static final String SNOMED = "http://snomed.info/sct";
 
-    /** Código LOINC de la prueba por CIM y por disco. */
-    public record LoincPair(String mic, String disk) {
+    /**
+     * Código LOINC de la prueba por CIM y por disco, con el componente LOINC en inglés: el "display" de un
+     * coding FHIR debe ser el nombre oficial (Long Common Name), no una traducción.
+     */
+    public record LoincPair(String component, String mic, String disk) {
+
+        /** Long Common Name, por ejemplo "Meropenem [Susceptibility] by Minimum inhibitory concentration (MIC)". */
+        public String micDisplay() {
+            return component + " [Susceptibility] by Minimum inhibitory concentration (MIC)";
+        }
+
+        /** Long Common Name, por ejemplo "Meropenem [Susceptibility] by Disk diffusion (KB)". */
+        public String diskDisplay() {
+            return component + " [Susceptibility] by Disk diffusion (KB)";
+        }
     }
 
     static final Map<String, LoincPair> ANTIBIOTICS = Map.ofEntries(
-            Map.entry("AMP", new LoincPair("28-1", "29-9")),
-            Map.entry("SAM", new LoincPair("32-3", "33-1")),
-            Map.entry("TZP", new LoincPair("412-7", "413-5")),
-            Map.entry("OXA", new LoincPair("383-0", "384-8")),
-            Map.entry("CZO", new LoincPair("76-0", "77-8")),
-            Map.entry("CRO", new LoincPair("141-2", "142-0")),
-            Map.entry("CAZ", new LoincPair("133-9", "134-7")),
-            Map.entry("FEP", new LoincPair("6644-9", "8272-7")),
-            Map.entry("ETP", new LoincPair("35801-0", "35799-6")),
-            Map.entry("IPM", new LoincPair("279-0", "280-8")),
-            Map.entry("MEM", new LoincPair("6652-2", "6653-0")),
-            Map.entry("GEN", new LoincPair("267-5", "268-3")),
-            Map.entry("AMK", new LoincPair("12-5", "13-3")),
-            Map.entry("CIP", new LoincPair("185-9", "186-7")),
-            Map.entry("LVX", new LoincPair("20396-8", "21367-8")),
-            Map.entry("SXT", new LoincPair("516-5", "517-3")),
-            Map.entry("NIT", new LoincPair("363-2", "364-0")),
-            Map.entry("VAN", new LoincPair("524-9", "525-6")),
-            Map.entry("LNZ", new LoincPair("29254-0", "29255-7")),
-            Map.entry("CLI", new LoincPair("193-3", "194-1")),
-            Map.entry("ERY", new LoincPair("233-7", "234-5")));
+            Map.entry("AMP", new LoincPair("Ampicillin", "28-1", "29-9")),
+            Map.entry("SAM", new LoincPair("Ampicillin+Sulbactam", "32-3", "33-1")),
+            Map.entry("TZP", new LoincPair("Piperacillin+Tazobactam", "412-7", "413-5")),
+            Map.entry("OXA", new LoincPair("Oxacillin", "383-0", "384-8")),
+            Map.entry("CZO", new LoincPair("Cefazolin", "76-0", "77-8")),
+            Map.entry("CRO", new LoincPair("Ceftriaxone", "141-2", "142-0")),
+            Map.entry("CAZ", new LoincPair("Ceftazidime", "133-9", "134-7")),
+            Map.entry("FEP", new LoincPair("Cefepime", "6644-9", "8272-7")),
+            Map.entry("ETP", new LoincPair("Ertapenem", "35801-0", "35799-6")),
+            Map.entry("IPM", new LoincPair("Imipenem", "279-0", "280-8")),
+            Map.entry("MEM", new LoincPair("Meropenem", "6652-2", "6653-0")),
+            Map.entry("GEN", new LoincPair("Gentamicin", "267-5", "268-3")),
+            Map.entry("AMK", new LoincPair("Amikacin", "12-5", "13-3")),
+            Map.entry("CIP", new LoincPair("Ciprofloxacin", "185-9", "186-7")),
+            Map.entry("LVX", new LoincPair("Levofloxacin", "20396-8", "21367-8")),
+            Map.entry("SXT", new LoincPair("Trimethoprim+Sulfamethoxazole", "516-5", "517-3")),
+            Map.entry("NIT", new LoincPair("Nitrofurantoin", "363-2", "364-0")),
+            Map.entry("VAN", new LoincPair("Vancomycin", "524-9", "525-6")),
+            Map.entry("LNZ", new LoincPair("Linezolid", "29254-0", "29255-7")),
+            Map.entry("CLI", new LoincPair("Clindamycin", "193-3", "194-1")),
+            Map.entry("ERY", new LoincPair("Erythromycin", "233-7", "234-5")));
 
     static final Map<String, String> ORGANISMS = Map.of(
             "eco", "112283007",   // Escherichia coli
