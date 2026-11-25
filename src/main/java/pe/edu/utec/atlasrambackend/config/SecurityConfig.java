@@ -84,7 +84,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/antibiogram/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/districts/**", "/microorganisms/**",
-                                "/antibiotics/**", "/facilities/**").permitAll()
+                                "/antibiotics/**", "/facilities/**", "/standards").permitAll()
                         .requestMatchers("/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/districts/**", "/microorganisms/**",
                                 "/antibiotics/**", "/facilities/**", "/breakpoints/**").hasRole("ADMIN")
