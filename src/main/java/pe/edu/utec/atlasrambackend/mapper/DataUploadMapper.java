@@ -1,6 +1,7 @@
 package pe.edu.utec.atlasrambackend.mapper;
 
 import org.springframework.stereotype.Component;
+import pe.edu.utec.atlasrambackend.dto.DataCompletenessDTO;
 import pe.edu.utec.atlasrambackend.dto.DataUploadResponseDTO;
 import pe.edu.utec.atlasrambackend.model.DataUpload;
 
@@ -8,6 +9,10 @@ import pe.edu.utec.atlasrambackend.model.DataUpload;
 public class DataUploadMapper {
 
     public DataUploadResponseDTO toResponse(DataUpload u) {
+        return toResponse(u, null);
+    }
+
+    public DataUploadResponseDTO toResponse(DataUpload u, DataCompletenessDTO completeness) {
         return new DataUploadResponseDTO(
                 u.getId(),
                 u.getFileName(),
@@ -21,7 +26,8 @@ public class DataUploadMapper {
                 u.getRevertedAt(),
                 u.getRevertedBy() == null ? null : u.getRevertedBy().getFullName(),
                 u.getRevertReason(),
-                u.getDataOrigin()
+                u.getDataOrigin(),
+                completeness
         );
     }
-}
+}

@@ -18,5 +18,7 @@ public record DataUploadResponseDTO(
         Instant revertedAt,
         String revertedBy,
         String revertReason,
-        DataOrigin dataOrigin
-) {}
+        DataOrigin dataOrigin,
+        /** Completitud de sexo, edad y servicio en los aislamientos de la carga; solo en GET /uploads/{id}. */
+        DataCompletenessDTO completeness
+) {}

@@ -26,6 +26,11 @@ public interface IsolateRepository extends JpaRepository<Isolate, Long>, JpaSpec
 
     long countByDataUploadId(Long dataUploadId);
 
+    /** [aislamientos, con sexo, con edad, con servicio] de una carga: count(x) solo cuenta los no nulos. */
+    @Query("select count(i), count(i.patientSex), count(i.patientAge), count(i.ward) from Isolate i "
+            + "where i.dataUpload.id = :uploadId")
+    List<Object[]> completenessOfUpload(@Param("uploadId") Long uploadId);
+
     /** Carga en la que ya se registró ese aislamiento del laboratorio, si existe. */
     @Query("""
         select i.dataUpload.id from Isolate i

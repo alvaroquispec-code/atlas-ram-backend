@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.utec.atlasrambackend.dto.DataCompletenessDTO;
 import pe.edu.utec.atlasrambackend.dto.DataUploadResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.UploadRevertResponseDTO;
 import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
@@ -62,8 +63,20 @@ public class DataUploadService {
 
     @Transactional(readOnly = true)
     public DataUploadResponseDTO findById(Long id) {
-        return dataUploadMapper.toResponse(dataUploadRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Carga", id)));
+        DataUpload upload = dataUploadRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Carga", id));
+        return dataUploadMapper.toResponse(upload, completeness(id));
+    }
+
+    /** Completitud de las variables mínimas obligatorias del INS entre los aislamientos de la carga. */
+    DataCompletenessDTO completeness(Long uploadId) {
+        List<Object[]> rows = isolateRepository.completenessOfUpload(uploadId);
+        if (rows == null || rows.isEmpty() || rows.get(0) == null) {
+            return DataCompletenessDTO.of(0, 0, 0, 0);
+        }
+        Object[] r = rows.get(0);
+        return DataCompletenessDTO.of(((Number) r[0]).longValue(), ((Number) r[1]).longValue(),
+                ((Number) r[2]).longValue(), ((Number) r[3]).longValue());
     }
 
     @Transactional(readOnly = true)

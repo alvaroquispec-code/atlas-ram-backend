@@ -492,6 +492,8 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 
 \* Cada fila necesita una CIM o un halo interpretables, o la interpretación del laboratorio.
 
+**Variables mínimas obligatorias del INS.** El INS exige sexo, edad, servicio y tipo de localización para enviar los datos a WHONET-INS. En el registro manual (`POST /isolates`, formulario web y móvil) los tres campos son obligatorios y se validan en el servidor. En una carga CSV o WHONET se aceptan vacíos para no perder el antibiograma, y `GET /uploads/{id}` informa el porcentaje de aislamientos de la carga que los trae (`completeness`).
+
 **Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`, `LOC_TYPE`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
 
 **Interpretación por disco.** Orden: CIM concluyente → halo → interpretación del laboratorio. En el disco el sentido es el contrario al de la CIM: sensible si el halo ≥ `diskSusceptibleMin`, resistente si ≤ `diskResistantMax`, intermedio entre ambos. Esos dos valores se cargan por punto de corte (`POST /breakpoints`) desde la tabla vigente de CLSI M100; el sistema no trae valores de disco precargados para no publicar puntos de corte desactualizados.

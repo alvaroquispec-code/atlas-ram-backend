@@ -114,4 +114,19 @@ class DataUploadServiceTest {
                 .hasMessageContaining("ya fue revertida");
         verify(isolateRepository, never()).deleteByUploadId(anyLong());
     }
+
+    @Test
+    void laCargaInformaLaCompletitudDeLasVariablesObligatoriasDelIns() {
+        upload(415L, UploadStatus.COMPLETED);
+        java.util.List<Object[]> fila = new java.util.ArrayList<>();
+        fila.add(new Object[]{40L, 40L, 38L, 10L});
+        when(isolateRepository.completenessOfUpload(415L)).thenReturn(fila);
+
+        var c = service.findById(415L).completeness();
+
+        assertThat(c.isolates()).isEqualTo(40);
+        assertThat(c.sexPercentage()).isEqualTo(100.0);
+        assertThat(c.agePercentage()).isEqualTo(95.0);
+        assertThat(c.wardPercentage()).isEqualTo(25.0);
+    }
 }
