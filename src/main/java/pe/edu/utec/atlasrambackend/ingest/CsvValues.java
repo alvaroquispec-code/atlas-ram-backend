@@ -2,6 +2,7 @@ package pe.edu.utec.atlasrambackend.ingest;
 
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.Specimen;
+import pe.edu.utec.atlasrambackend.model.Ward;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
@@ -37,6 +38,18 @@ public final class CsvValues {
             Map.entry("COPROCULTIVO", Specimen.STOOL),
             Map.entry("OTHER", Specimen.OTHER), Map.entry("OTRO", Specimen.OTHER), Map.entry("OTRA", Specimen.OTHER));
 
+    /** Formas habituales de escribir el servicio, ya normalizadas (mayúsculas, sin tildes, "_" por espacio). */
+    private static final Map<String, Ward> WARDS = Map.ofEntries(
+            Map.entry("ICU", Ward.ICU), Map.entry("UCI", Ward.ICU), Map.entry("UTI", Ward.ICU),
+            Map.entry("UCIN", Ward.ICU), Map.entry("CUIDADOS_INTENSIVOS", Ward.ICU),
+            Map.entry("INPATIENT", Ward.INPATIENT), Map.entry("IN", Ward.INPATIENT),
+            Map.entry("HOSPITALIZACION", Ward.INPATIENT), Map.entry("HOSPITALIZADO", Ward.INPATIENT),
+            Map.entry("EMERGENCY", Ward.EMERGENCY), Map.entry("EMERGENCIA", Ward.EMERGENCY),
+            Map.entry("EME", Ward.EMERGENCY), Map.entry("ER", Ward.EMERGENCY),
+            Map.entry("OUTPATIENT", Ward.OUTPATIENT), Map.entry("OUT", Ward.OUTPATIENT),
+            Map.entry("CONSULTA_EXTERNA", Ward.OUTPATIENT), Map.entry("AMBULATORIO", Ward.OUTPATIENT),
+            Map.entry("CE", Ward.OUTPATIENT));
+
     private static final Map<String, Interpretation> INTERPRETATIONS = Map.of(
             "S", Interpretation.SUSCEPTIBLE, "SUSCEPTIBLE", Interpretation.SUSCEPTIBLE,
             "SENSIBLE", Interpretation.SUSCEPTIBLE,
@@ -71,6 +84,19 @@ public final class CsvValues {
                     + "' (BLOOD/SANGRE, URINE/ORINA, RESPIRATORY, WOUND, CSF/LCR, STOOL/HECES, OTHER)");
         }
         return specimen;
+    }
+
+    /** Vacío = el laboratorio no informó el servicio. */
+    public static Ward parseWard(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        Ward ward = WARDS.get(normalize(raw));
+        if (ward == null) {
+            throw new IllegalArgumentException("servicio desconocido: '" + raw
+                    + "' (UCI, HOSPITALIZACION, EMERGENCIA, CONSULTA_EXTERNA)");
+        }
+        return ward;
     }
 
     /** Vacío = el laboratorio no informó interpretación. */

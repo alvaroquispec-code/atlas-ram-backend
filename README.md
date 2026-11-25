@@ -488,10 +488,11 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 | `id_aislamiento` | recomendada | número de muestra | evita mezclar pacientes y registrar dos veces el mismo aislamiento |
 | `codigo_establecimiento` | no | `HNCH` | si viene, debe ser el de la carga |
 | `edad`, `sexo`, `ubigeo_residencia` | no | `47`, `F`, `150135` | |
+| `servicio` | recomendada | `UCI`, `HOSPITALIZACION`, `EMERGENCIA`, `CONSULTA_EXTERNA` | permite el antibiograma y el WISCA por servicio (CLSI M39 recomienda uno propio para UCI); también `tipo_servicio`, `ubicacion`, `location_type` |
 
 \* Cada fila necesita una CIM o un halo interpretables, o la interpretación del laboratorio.
 
-**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
+**Exportación de WHONET.** También se acepta el archivo que exporta WHONET (una fila por aislamiento y una columna por antibiótico, como `MEM_NM`, `CIP_EE` o `AMP_ND10`). Se reconoce solo y se convierte al formato anterior. Las columnas del aislamiento se aceptan con su nombre técnico (`SPEC_DATE`, `SPEC_TYPE`, `ORGANISM`, `PATIENT_ID`, `SPEC_NUM`, `ISOL_NUM`, `LOC_TYPE`), en inglés o en español. Las columnas de CIM (M) y de gradiente (E) se leen como CIM. Las de disco (D) se leen como diámetro del halo en mm; si un antibiótico trae CIM y disco se guardan ambos y la interpretación usa primero la CIM. Cualquier columna puede traer S, I o R en lugar del número.
 
 **Interpretación por disco.** Orden: CIM concluyente → halo → interpretación del laboratorio. En el disco el sentido es el contrario al de la CIM: sensible si el halo ≥ `diskSusceptibleMin`, resistente si ≤ `diskResistantMax`, intermedio entre ambos. Esos dos valores se cargan por punto de corte (`POST /breakpoints`) desde la tabla vigente de CLSI M100; el sistema no trae valores de disco precargados para no publicar puntos de corte desactualizados.
 
@@ -526,7 +527,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/standards` | público: edición de CLSI M100 con que se interpretan las CIM, la norma de agregación (CLSI M39) y las tablas de fenotipos esperados de EUCAST |
 | `GET` | `/breakpoints/editions` | autenticado: ediciones de puntos de corte cargadas y cuál está activa |
 | `POST` | `/breakpoints/reinterpret?version=&apply=` | administrador: reinterpreta las CIM y halos guardados con una edición; `apply=false` es vista previa, `apply=true` solo con la edición activa |
-| `GET` | `/antibiogram` | público |
+| `GET` | `/antibiogram?ward=` | público; `ward` (`ICU`, `INPATIENT`, `EMERGENCY`, `OUTPATIENT`) da el antibiograma estratificado de ese servicio |
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |

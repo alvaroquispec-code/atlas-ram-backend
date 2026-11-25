@@ -769,6 +769,20 @@ def build_uploads(lab_users):
     return rows, ids
 
 
+WARD_CODES = {"OUTPATIENT": "O", "EMERGENCY": "E", "INPATIENT": "H", "ICU": "U"}
+
+
+def ward_sql(isolates):
+    """UPDATE con el servicio de cada aislamiento sintetico. Se cruza por id y fecha de toma, asi que en una
+    base que no salio de este seed no cambia nada. Codigos de una letra para que la migracion sea compacta."""
+    values = ",\n".join(f"({iso['id']},'{iso['sample']['date'].isoformat()}','{WARD_CODES[iso['sample']['ward']]}')"
+                        for iso in isolates)
+    return ("UPDATE isolate i SET ward = CASE v.w WHEN 'O' THEN 'OUTPATIENT' WHEN 'E' THEN 'EMERGENCY' "
+            "WHEN 'H' THEN 'INPATIENT' ELSE 'ICU' END\nFROM (VALUES\n" + values + "\n) AS v(id, d, w)\n"
+            "WHERE i.id = v.id AND i.collection_date = cast(v.d AS date) AND i.data_origin = 'SYNTHETIC' "
+            "AND i.ward IS NULL;\n")
+
+
 def main():
     users, user_links, lab_users = build_users()
     upload_rows, upload_ids = build_uploads(lab_users)
@@ -860,6 +874,9 @@ def main():
         # Puntos de corte por sitio y ceftriaxona de S. pneumoniae: mismo SQL que la migracion V14
         fh.write("-- Misma carga que la migracion V14 (puntos de corte por sitio y ceftriaxona de S. pneumoniae)\n")
         fh.write(SPN_CEFTRIAXONE_SQL)
+        # Servicio del paciente: mismo SQL que la migracion V15
+        fh.write("-- Misma carga que la migracion V15 (servicio del paciente)\n")
+        fh.write(ward_sql(isolates))
         fh.write("\nCOMMIT;\n")
 
     print(f"aislamientos: {len(isolate_rows)}  resultados: {len(result_rows)}  breakpoints: {len(breakpoint_rows)}  "

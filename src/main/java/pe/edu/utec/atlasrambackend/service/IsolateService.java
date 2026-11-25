@@ -72,6 +72,7 @@ public class IsolateService {
         isolate.setPatientAge(dto.patientAge());
         isolate.setPatientSex(dto.patientSex());
         isolate.setDataOrigin(dto.dataOrigin() == null ? DataOrigin.SYNTHETIC : dto.dataOrigin());
+        isolate.setWard(dto.ward());
         isolate.setFacility(facilityRepository.findById(dto.facilityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Establecimiento", dto.facilityId())));
         isolate.setMicroorganism(microorganismRepository.findById(dto.microorganismId())

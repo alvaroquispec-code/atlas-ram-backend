@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
 import pe.edu.utec.atlasrambackend.model.MicQualifier;
+import pe.edu.utec.atlasrambackend.model.Ward;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -40,6 +41,7 @@ public class AntibiogramQueries {
                   and (:allFacilities or i.facility_id in (:facilityIds))
                   and (cast(:specimen as varchar) is null or i.specimen_type = :specimen)
                   and (cast(:origin as varchar) is null or i.data_origin = :origin)
+                  and (cast(:ward as varchar) is null or i.ward = :ward)
             ),
             ranked as (
                 select e.*,
@@ -199,15 +201,25 @@ public class AntibiogramQueries {
     /** facilityIds null = todos los establecimientos. origin null = toda procedencia. */
     public List<Row> antibiogram(Long microorganismId, Long districtId, Collection<Long> facilityIds,
                                  LocalDate from, LocalDate to, DataOrigin origin) {
-        return jdbc.query(ANTIBIOGRAM, params(microorganismId, districtId, facilityIds, from, to, origin),
+        return antibiogram(microorganismId, districtId, facilityIds, from, to, origin, null);
+    }
+
+    /** ward null = todos los servicios; con un servicio, solo los aislamientos de ese servicio (p. ej. UCI). */
+    public List<Row> antibiogram(Long microorganismId, Long districtId, Collection<Long> facilityIds,
+                                 LocalDate from, LocalDate to, DataOrigin origin, Ward ward) {
+        return jdbc.query(ANTIBIOGRAM, withWard(params(microorganismId, districtId, facilityIds, from, to, origin), ward),
                 AntibiogramQueries::mapRow);
+    }
+
+    private static MapSqlParameterSource withWard(MapSqlParameterSource params, Ward ward) {
+        return params.addValue("ward", ward == null ? null : ward.name(), java.sql.Types.VARCHAR);
     }
 
     /** facilityIds null = todos los establecimientos. origin null = toda procedencia. */
     public List<SiteResultRow> siteResults(Long microorganismId, Long districtId, Collection<Long> facilityIds,
-                                           LocalDate from, LocalDate to, DataOrigin origin,
+                                           LocalDate from, LocalDate to, DataOrigin origin, Ward ward,
                                            String standard, String version) {
-        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to, origin)
+        MapSqlParameterSource params = withWard(params(microorganismId, districtId, facilityIds, from, to, origin), ward)
                 .addValue("standard", standard)
                 .addValue("version", version);
         return jdbc.query(SITE_RESULTS, params, (rs, i) -> {
@@ -231,7 +243,12 @@ public class AntibiogramQueries {
     /** Primeros aislamientos de un tipo de muestra con todos sus resultados. facilityIds null = todos. */
     public List<ProfileRow> profiles(String specimen, Long districtId, Collection<Long> facilityIds,
                                      LocalDate from, LocalDate to, DataOrigin origin) {
-        MapSqlParameterSource params = params(null, districtId, facilityIds, from, to, origin)
+        return profiles(specimen, districtId, facilityIds, from, to, origin, null);
+    }
+
+    public List<ProfileRow> profiles(String specimen, Long districtId, Collection<Long> facilityIds,
+                                     LocalDate from, LocalDate to, DataOrigin origin, Ward ward) {
+        MapSqlParameterSource params = withWard(params(null, districtId, facilityIds, from, to, origin), ward)
                 .addValue("specimen", specimen, java.sql.Types.VARCHAR);
         return jdbc.query(PROFILES, params, (rs, i) -> {
             String species = rs.getString("species");
@@ -288,6 +305,7 @@ public class AntibiogramQueries {
                 .addValue("allFacilities", all)
                 .addValue("specimen", null, java.sql.Types.VARCHAR)
                 .addValue("origin", origin == null ? null : origin.name(), java.sql.Types.VARCHAR)
+                .addValue("ward", null, java.sql.Types.VARCHAR)
                 // "in ()" vacío es SQL inválido; con allFacilities = true esta lista no se evalúa.
                 .addValue("facilityIds", all || facilityIds.isEmpty() ? List.of(-1L) : facilityIds);
     }

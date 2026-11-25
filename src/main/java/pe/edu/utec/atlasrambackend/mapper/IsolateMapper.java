@@ -30,7 +30,8 @@ public class IsolateMapper {
                 uploadId,
                 i.getLabIsolateId(),
                 i.getPatientKey() != null,
-                i.getDataOrigin()
+                i.getDataOrigin(),
+                i.getWard()
         );
     }
-}
+}

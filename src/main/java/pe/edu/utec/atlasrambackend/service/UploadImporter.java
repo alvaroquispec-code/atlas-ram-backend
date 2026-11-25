@@ -193,6 +193,7 @@ public class UploadImporter {
         isolate.setLabIsolateId(labIsolateId);
         isolate.setDataUpload(upload);
         isolate.setDataOrigin(upload.getDataOrigin());
+        isolate.setWard(CsvValues.parseWard(row.ward()));
         if (!row.residenceUbigeo().isBlank()) {
             districtRepository.findByUbigeo(row.residenceUbigeo()).ifPresent(isolate::setDistrict);
         }

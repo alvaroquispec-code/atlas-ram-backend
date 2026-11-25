@@ -4,6 +4,7 @@ import pe.edu.utec.atlasrambackend.model.Specimen;
 
 import java.time.LocalDate;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
+import pe.edu.utec.atlasrambackend.model.Ward;
 
 public record IsolateResponseDTO(
         Long id,
@@ -18,5 +19,6 @@ public record IsolateResponseDTO(
         Long dataUploadId,
         String labIsolateId,
         boolean patientIdentified,
-        DataOrigin dataOrigin
-) {}
+        DataOrigin dataOrigin,
+        Ward ward
+) {}

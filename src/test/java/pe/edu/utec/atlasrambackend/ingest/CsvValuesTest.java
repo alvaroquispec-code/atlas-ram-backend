@@ -5,6 +5,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.Specimen;
+import pe.edu.utec.atlasrambackend.model.Ward;
 
 import java.time.LocalDate;
 
@@ -62,5 +63,16 @@ class CsvValuesTest {
     void elIdentificadorDePacienteSeNormaliza() {
         assertThat(CsvValues.normalizePatientId(" hc-0012.345 "))
                 .isEqualTo(CsvValues.normalizePatientId("HC0012345"));
+    }
+
+    @Test
+    void elServicioAceptaLasFormasHabitualesYVacioEsNull() {
+        assertThat(CsvValues.parseWard("UCI")).isEqualTo(Ward.ICU);
+        assertThat(CsvValues.parseWard("Cuidados intensivos")).isEqualTo(Ward.ICU);
+        assertThat(CsvValues.parseWard("Hospitalización")).isEqualTo(Ward.INPATIENT);
+        assertThat(CsvValues.parseWard("consulta externa")).isEqualTo(Ward.OUTPATIENT);
+        assertThat(CsvValues.parseWard("Emergencia")).isEqualTo(Ward.EMERGENCY);
+        assertThat(CsvValues.parseWard(" ")).isNull();
+        assertThatThrownBy(() -> CsvValues.parseWard("Cardiología")).hasMessageContaining("servicio desconocido");
     }
 }

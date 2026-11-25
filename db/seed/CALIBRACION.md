@@ -74,7 +74,11 @@ Las series de la selva provienen solo de áreas críticas, por eso superan las c
 
 **Procedencia del paciente.** WHONET, el software más usado por los laboratorios, registra por defecto edad, sexo y ubicación dentro del hospital, pero no el distrito de residencia; solo lo tendría un laboratorio que lo haya agregado como campo definido por el usuario. Si la fuente real no lo trae, el mapa refleja la ubicación de los establecimientos y no la residencia de los pacientes, y así debe presentarse.
 
-No se aplica la regla de "primer aislamiento por paciente" de CLSI M39, porque no hay entidad paciente. Las CIM en el tope del panel automatizado equivalen a "≥", aunque se guardan como número.
+**Primer aislamiento por paciente.** El seed no tiene identificador de paciente (`patient_key` nulo), así que cada aislamiento cuenta como un paciente distinto y la regla de CLSI M39 no excluye repetidos. Con datos reales que traigan `id_paciente` la regla sí se aplica (seudónimo HMAC).
+
+**Servicio del paciente (V15).** El generador decide el servicio de cada aislamiento (consulta externa, emergencia, hospitalización o UCI) y la probabilidad de resistencia depende de él; desde V15 ese servicio se guarda en `isolate.ward`. Resultado en el seed: *K. pneumoniae* resistente a meropenem 24,2 % en UCI, 14,4 % en hospitalización, 5,7 % en emergencia y 3,9 % en consulta externa; *E. coli* resistente a ceftriaxona 63,9 %, 49,0 %, 40,6 % y 25,5 %.
+
+**CIM en el tope del panel.** Las CIM en el tope del panel automatizado se guardan con el calificador "≥" (V13).
 
 ## Cómo cargarlo
 

@@ -105,4 +105,14 @@ class WhonetFormatTest {
         assertThat(r.rows()).hasSize(1);
         assertThat(r.rows().get(0).antibioticCode()).isEqualTo("MEM");
     }
+
+    @Test
+    void elTipoDeUbicacionPasaComoServicio() {
+        CsvParser.Result r = parse("""
+                SPEC_DATE,SPEC_TYPE,ORGANISM,LOC_TYPE,MEM_NM
+                2026-08-20,BLOOD,kpn,icu,>=16
+                """);
+
+        assertThat(r.rows().get(0).ward()).isEqualTo("icu");
+    }
 }

@@ -103,4 +103,9 @@ public class Isolate {
     @Enumerated(EnumType.STRING)
     @Column(name = "data_origin", nullable = false, length = 20)
     private DataOrigin dataOrigin = DataOrigin.SYNTHETIC;
+
+    /** Servicio del paciente (V15). Opcional: null si el laboratorio no lo informó. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Ward ward;
 }

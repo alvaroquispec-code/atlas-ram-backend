@@ -19,5 +19,7 @@ public record CsvRowDTO(
         String patientId,
         String labIsolateId,
         /** Diámetro del halo en mm (difusión en disco); vacío si no se informó. */
-        String diskMm
+        String diskMm,
+        /** Servicio del paciente (UCI, hospitalización, emergencia, consulta externa); vacío si no se informó. */
+        String ward
 ) {}

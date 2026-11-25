@@ -35,10 +35,14 @@ public class CsvParser {
 
     static final List<String> OPTIONAL = List.of(
             "codigo_establecimiento", "edad", "sexo", "ubigeo_residencia", "cim",
-            "interpretacion_laboratorio", "id_paciente", "id_aislamiento", "halo_mm");
+            "interpretacion_laboratorio", "id_paciente", "id_aislamiento", "halo_mm", "servicio");
 
     /** Otros nombres con que los laboratorios llaman al diámetro del halo. */
     static final Set<String> DISK_ALIASES = Set.of("halo", "diametro_halo", "diámetro_halo", "disco_mm", "diametro_mm");
+
+    /** Otros nombres de la columna del servicio del paciente. */
+    static final Set<String> WARD_ALIASES = Set.of("tipo_servicio", "servicio_paciente", "ubicacion", "ward",
+            "location_type");
 
     /** Filas leídas y filas descartadas por estar mal formadas ("Línea N: motivo"). */
     public record Result(List<CsvRowDTO> rows, List<String> malformed) {
@@ -92,7 +96,8 @@ public class CsvParser {
                 value(r, columns, "interpretacion_laboratorio"),
                 value(r, columns, "id_paciente"),
                 value(r, columns, "id_aislamiento"),
-                value(r, columns, "halo_mm"));
+                value(r, columns, "halo_mm"),
+                value(r, columns, "servicio"));
     }
 
     private static String value(CsvRecord r, Map<String, Integer> columns, String name) {
@@ -107,7 +112,7 @@ public class CsvParser {
             if (name.isEmpty()) {
                 continue;
             }
-            name = DISK_ALIASES.contains(name) ? "halo_mm" : name;
+            name = DISK_ALIASES.contains(name) ? "halo_mm" : WARD_ALIASES.contains(name) ? "servicio" : name;
             if (columns.putIfAbsent(name, i) != null) {
                 throw new InvalidCsvFormatException("La columna '" + name + "' está repetida en la cabecera");
             }

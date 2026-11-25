@@ -18,6 +18,7 @@ import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.District;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.MicQualifier;
+import pe.edu.utec.atlasrambackend.model.Ward;
 import pe.edu.utec.atlasrambackend.repository.AntibiogramQueries;
 import pe.edu.utec.atlasrambackend.repository.AntibioticRepository;
 import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
@@ -82,8 +83,20 @@ public class AntibiogramService {
                                                   LocalDate to,
                                                   boolean includeInsufficient,
                                                   DataOrigin origin) {
+        return calculate(microorganismId, districtId, from, to, includeInsufficient, origin, null);
+    }
+
+    /** ward: antibiograma estratificado por servicio (CLSI M39), p. ej. solo UCI. null = todos. */
+    @Transactional(readOnly = true)
+    public List<AntibiogramResponseDTO> calculate(Long microorganismId,
+                                                  Long districtId,
+                                                  LocalDate from,
+                                                  LocalDate to,
+                                                  boolean includeInsufficient,
+                                                  DataOrigin origin,
+                                                  Ward ward) {
         validateRange(from, to);
-        return toEntries(rows(microorganismId, districtId, null, from, to, origin), includeInsufficient);
+        return toEntries(rows(microorganismId, districtId, null, from, to, origin, ward), includeInsufficient);
     }
 
     /** Filas de la consulta convertidas a la respuesta, con porcentajes e intervalos. */
@@ -116,9 +129,9 @@ public class AntibiogramService {
      * una por sitio, aplicando cada punto de corte a la CIM de todos los primeros aislamientos.
      */
     private List<AntibiogramQueries.Row> rows(Long microorganismId, Long districtId, java.util.Collection<Long> facilityIds,
-                                              LocalDate from, LocalDate to, DataOrigin origin) {
+                                              LocalDate from, LocalDate to, DataOrigin origin, Ward ward) {
         List<AntibiogramQueries.Row> rows = antibiogramQueries.antibiogram(microorganismId, districtId, facilityIds,
-                from, to, origin);
+                from, to, origin, ward);
         List<Breakpoint> siteBreakpoints = breakpointRepository.findByStandardAndVersion(standard, version).stream()
                 .filter(b -> b.getSite() != BreakpointSite.ANY)
                 .toList();
@@ -126,7 +139,7 @@ public class AntibiogramService {
             return rows;
         }
         return splitBySite(rows, antibiogramQueries.siteResults(microorganismId, districtId, facilityIds, from, to,
-                origin, standard, version), siteBreakpoints);
+                origin, ward, standard, version), siteBreakpoints);
     }
 
     /**
@@ -308,7 +321,7 @@ public class AntibiogramService {
         List<AntibiogramResponseDTO> entries = top.isEmpty()
                 ? List.of()
                 : toEntries(rows(null, null,
-                        top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to, origin), false);
+                        top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to, origin, null), false);
 
         return new ReferralAntibiogramResponseDTO(district.getName(), facilities, entries);
     }

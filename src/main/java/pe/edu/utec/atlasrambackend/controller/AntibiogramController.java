@@ -16,6 +16,7 @@ import pe.edu.utec.atlasrambackend.wisca.Syndrome;
 import pe.edu.utec.atlasrambackend.wisca.WiscaService;
 import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
+import pe.edu.utec.atlasrambackend.model.Ward;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -45,9 +46,10 @@ public class AntibiogramController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "false") boolean includeInsufficient,
-            @RequestParam(required = false) DataOrigin origin) {
+            @RequestParam(required = false) DataOrigin origin,
+            @RequestParam(required = false) Ward ward) {
         return ResponseEntity.ok(
-                antibiogramService.calculate(microorganismId, districtId, from, to, includeInsufficient, origin));
+                antibiogramService.calculate(microorganismId, districtId, from, to, includeInsufficient, origin, ward));
     }
 
     /**
@@ -97,9 +99,10 @@ public class AntibiogramController {
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long facilityId,
             @RequestParam(defaultValue = "90") double target,
-            @RequestParam(required = false) DataOrigin origin) {
+            @RequestParam(required = false) DataOrigin origin,
+            @RequestParam(required = false) Ward ward) {
         return ResponseEntity.ok(wiscaService.calculate(syndrome, regimens, districtId, facilityId, from, to, target,
-                origin));
+                origin, ward));
     }
 
     /**

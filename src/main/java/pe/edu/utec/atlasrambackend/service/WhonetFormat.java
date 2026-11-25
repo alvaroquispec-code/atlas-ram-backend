@@ -35,7 +35,7 @@ final class WhonetFormat {
     private static final Set<String> INTERPRETATIONS = Set.of(
             "S", "I", "R", "SUSCEPTIBLE", "INTERMEDIATE", "RESISTANT", "SENSIBLE", "INTERMEDIO", "RESISTENTE");
 
-    enum Field { PATIENT_ID, SPECIMEN_NUMBER, ISOLATE_NUMBER, SPECIMEN_DATE, SPECIMEN_TYPE, ORGANISM, SEX, AGE }
+    enum Field { PATIENT_ID, SPECIMEN_NUMBER, ISOLATE_NUMBER, SPECIMEN_DATE, SPECIMEN_TYPE, ORGANISM, SEX, AGE, WARD }
 
     /** Nombres aceptados, ya normalizados (minúsculas, sin tildes ni signos). */
     static final Map<Field, Set<String>> ALIASES = Map.of(
@@ -48,7 +48,9 @@ final class WhonetFormat {
             Field.SPECIMEN_TYPE, Set.of("spectype", "specimentype", "tipodemuestra", "tipomuestra"),
             Field.ORGANISM, Set.of("organism", "organismo", "microorganismo"),
             Field.SEX, Set.of("sex", "sexo"),
-            Field.AGE, Set.of("age", "edad"));
+            Field.AGE, Set.of("age", "edad"),
+            Field.WARD, Set.of("loctype", "locationtype", "wardtype", "tipodeubicacion", "tipodeservicio",
+                    "servicio"));
 
     private WhonetFormat() {
     }
@@ -108,6 +110,7 @@ final class WhonetFormat {
                     : isolateNumber.isEmpty() ? specimenNumber : specimenNumber + "-" + isolateNumber;
             String age = get(record, fields, Field.AGE);
             String sex = get(record, fields, Field.SEX);
+            String ward = get(record, fields, Field.WARD);
 
             for (Map.Entry<String, AntibioticColumns> entry : antibiotics.entrySet()) {
                 String mic = entry.getValue().first(record, entry.getValue().mic);
@@ -126,7 +129,7 @@ final class WhonetFormat {
                     disk = "";
                 }
                 rows.add(new CsvRowDTO(record.line(), date, specimen, age, sex, "", "", organism, entry.getKey(),
-                        mic, reported, patient, labIsolateId, disk));
+                        mic, reported, patient, labIsolateId, disk, ward));
             }
         }
         return new CsvParser.Result(rows, malformed);
