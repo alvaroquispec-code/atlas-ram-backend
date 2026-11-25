@@ -114036,4 +114036,38 @@ SELECT setval(pg_get_serial_sequence('susceptibility_result', 'id'), (SELECT MAX
 -- El tope del panel equivale a ">=" (MIC_CAP): mismo criterio que la migracion V13
 UPDATE susceptibility_result r SET mic_qualifier = 'GE' FROM isolate i, antibiotic a, (VALUES ('ETP', 8), ('MEM', 16), ('IPM', 16), ('CIP', 4), ('LVX', 8), ('GEN', 16), ('AMK', 64), ('CRO', 64), ('CAZ', 64), ('FEP', 64), ('TZP', 128), ('AMP', 32), ('SAM', 32), ('CZO', 64), ('OXA', 4), ('VAN', 32), ('LNZ', 8), ('CLI', 8), ('ERY', 8), ('NIT', 512), ('SXT', 16)) AS cap(code, mic) WHERE i.id = r.isolate_id AND a.id = r.antibiotic_id AND a.code = cap.code AND i.data_origin = 'SYNTHETIC' AND r.mic_qualifier IS NULL AND r.mic_value = cap.mic;
 
+-- Misma carga que la migracion V14 (puntos de corte por sitio y ceftriaxona de S. pneumoniae)
+-- Puntos de corte CLSI de S. pneumoniae frente a ceftriaxona y cefepima, por sitio de infección.
+INSERT INTO breakpoint (microorganism_id, antibiotic_id, standard, version, susceptible_max, resistant_min, site)
+SELECT m.id, a.id, 'CLSI', v.version, s.s_max, s.r_min, s.site
+FROM microorganism m, antibiotic a,
+     (VALUES ('2022'), ('2024')) AS v(version),
+     (VALUES ('MENINGITIS', 0.5, 2), ('NON_MENINGITIS', 1, 4)) AS s(site, s_max, r_min)
+WHERE m.code = 'spn' AND a.code IN ('CRO', 'FEP')
+ON CONFLICT DO NOTHING;
+
+-- CIM sintéticas de ceftriaxona para los S. pneumoniae del seed (deterministas: dependen del id del aislamiento).
+-- Distribución: <=0,03 40 %, 0,06 18 %, 0,12 12 %, 0,25 9 %, 0,5 7 %, 1 10 %, 2 3 %, 4 1 %.
+-- Con los puntos de corte de CLSI reproduce dos cifras peruanas a la vez (ver db/seed/CALIBRACION.md):
+--   infección no meníngea, no sensible (CIM >= 2): 4 %   (Castro 2017: 4,5 %; Gomez 2025: 2 %)
+--   meningitis, no sensible (CIM >= 1):            14 %  (Torres 2026, periodo 2016-2019: 14 %)
+INSERT INTO susceptibility_result (isolate_id, antibiotic_id, mic_value, mic_qualifier, interpretation,
+                                   reported_interpretation, interpretation_source, breakpoint_standard,
+                                   breakpoint_version)
+SELECT i.id, a.id, d.mic, d.qualifier, c.category, c.category, 'CALCULATED', 'CLSI', '2024'
+FROM isolate i
+JOIN microorganism m ON m.id = i.microorganism_id AND m.code = 'spn'
+JOIN antibiotic a ON a.code = 'CRO'
+CROSS JOIN LATERAL (SELECT abs(hashtext('CRO-' || i.id)) % 1000 AS u) h
+JOIN (VALUES (0, 400, 0.03, 'LE'), (400, 580, 0.06, NULL), (580, 700, 0.12, NULL), (700, 790, 0.25, NULL),
+             (790, 860, 0.5, NULL), (860, 960, 1, NULL), (960, 990, 2, NULL), (990, 1000, 4, NULL))
+     AS d(lo, hi, mic, qualifier) ON h.u >= d.lo AND h.u < d.hi
+CROSS JOIN LATERAL (SELECT CASE
+        WHEN i.specimen_type = 'CSF' THEN CASE WHEN d.mic <= 0.5 THEN 'SUSCEPTIBLE'
+                                               WHEN d.mic >= 2 THEN 'RESISTANT' ELSE 'INTERMEDIATE' END
+        ELSE CASE WHEN d.mic <= 1 THEN 'SUSCEPTIBLE' WHEN d.mic >= 4 THEN 'RESISTANT' ELSE 'INTERMEDIATE' END
+    END AS category) c
+WHERE i.data_origin = 'SYNTHETIC'
+  AND NOT EXISTS (SELECT 1 FROM susceptibility_result r WHERE r.isolate_id = i.id AND r.antibiotic_id = a.id);
+
 COMMIT;

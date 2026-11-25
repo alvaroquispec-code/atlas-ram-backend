@@ -5,6 +5,7 @@ import pe.edu.utec.atlasrambackend.model.Breakpoint;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.InterpretationSource;
 import pe.edu.utec.atlasrambackend.model.MicQualifier;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 
 import java.math.BigDecimal;
 
@@ -20,7 +21,7 @@ class ReinterpretationServiceTest {
     }
 
     private static ReinterpretationService.Row gentamicin(String mic, MicQualifier q, Interpretation current) {
-        return new ReinterpretationService.Row(1L, 1L, 12L, "Escherichia coli", "Gentamicina",
+        return new ReinterpretationService.Row(1L, 1L, 12L, Specimen.BLOOD, "Escherichia coli", "Gentamicina",
                 mic == null ? null : new BigDecimal(mic), q, null, current, Interpretation.RESISTANT,
                 InterpretationSource.CALCULATED, "CLSI", "2024");
     }
@@ -54,7 +55,7 @@ class ReinterpretationServiceTest {
         Breakpoint disk = new Breakpoint();
         disk.setDiskSusceptibleMin(15);
         disk.setDiskResistantMax(12);
-        var row = new ReinterpretationService.Row(1L, 1L, 12L, "Escherichia coli", "Gentamicina", null, null, 18,
+        var row = new ReinterpretationService.Row(1L, 1L, 12L, Specimen.BLOOD, "Escherichia coli", "Gentamicina", null, null, 18,
                 Interpretation.RESISTANT, null, InterpretationSource.LAB_REPORTED, null, null);
 
         var outcome = ReinterpretationService.reinterpretRow(row, disk, "CLSI", "2024").orElseThrow();

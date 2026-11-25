@@ -1,5 +1,7 @@
 package pe.edu.utec.atlasrambackend.dto;
 
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,7 +21,13 @@ public record CreateBreakpointDTO(
         /** Disco (mm): S si el halo ≥ este valor. Opcional. */
         @Positive Integer diskSusceptibleMin,
         /** Disco (mm): R si el halo ≤ este valor. Opcional. */
-        @Positive Integer diskResistantMax
-) {}
+        @Positive Integer diskResistantMax,
+        /** Sitio de infección: ANY (por defecto), MENINGITIS o NON_MENINGITIS. */
+        BreakpointSite site
+) {
+    public BreakpointSite siteOrDefault() {
+        return site == null ? BreakpointSite.ANY : site;
+    }
+}
 
 

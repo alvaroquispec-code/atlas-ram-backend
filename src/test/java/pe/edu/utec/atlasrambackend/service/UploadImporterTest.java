@@ -77,7 +77,7 @@ class UploadImporterTest {
             return Optional.of(a);
         });
         // La interpretación no es lo que se prueba aquí: se acepta la del laboratorio.
-        when(interpretationService.resolve(any(), any(), any(), any(), any())).thenAnswer(inv -> Optional.of(
+        when(interpretationService.resolve(any(), any(), any(), any(), any(), any())).thenAnswer(inv -> Optional.of(
                 new InterpretationService.Resolution(inv.getArgument(2), InterpretationSource.LAB_REPORTED, null, null)));
         when(isolateRepository.findUploadIdsOfLabIsolate(any(), anyString(), any())).thenReturn(List.of());
 
@@ -184,7 +184,7 @@ class UploadImporterTest {
         assertThat(isolates).hasSize(1);
         var result = isolates.get(0).getResults().get(0);
         assertThat(result.getDiskDiffusionMm()).isEqualTo(19);
-        verify(interpretationService).resolve(any(), org.mockito.ArgumentMatchers.eq(19), any(), any(), any());
+        verify(interpretationService).resolve(any(), org.mockito.ArgumentMatchers.eq(19), any(), any(), any(), any());
     }
 
     @Test

@@ -1,5 +1,7 @@
 package pe.edu.utec.atlasrambackend.dto;
 
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+
 
 import java.math.BigDecimal;
 
@@ -15,6 +17,7 @@ public record BreakpointResponseDTO(
         BigDecimal susceptibleMax,
         BigDecimal resistantMin,
         Integer diskSusceptibleMin,
-        Integer diskResistantMax
+        Integer diskResistantMax,
+        BreakpointSite site
 ) {}
 

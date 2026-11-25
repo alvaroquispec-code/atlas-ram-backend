@@ -48,11 +48,11 @@ public class BreakpointService {
     @Transactional
     public BreakpointResponseDTO create(CreateBreakpointDTO dto) {
         validateThresholds(dto);
-        if (breakpointRepository.existsByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
-                dto.microorganismId(), dto.antibioticId(), dto.standard(), dto.version())) {
+        if (breakpointRepository.existsByMicroorganismIdAndAntibioticIdAndStandardAndVersionAndSite(
+                dto.microorganismId(), dto.antibioticId(), dto.standard(), dto.version(), dto.siteOrDefault())) {
             throw new DuplicateResourceException(
                     "Ya existe un punto de corte para esa combinación de microorganismo, "
-                            + "antibiótico, norma y versión");
+                            + "antibiótico, norma, versión y sitio de infección");
         }
         Breakpoint saved = breakpointRepository.save(breakpointMapper.toEntity(
                 dto, getMicroorganismOrThrow(dto.microorganismId()),
@@ -72,6 +72,7 @@ public class BreakpointService {
         breakpoint.setResistantMin(dto.resistantMin());
         breakpoint.setDiskSusceptibleMin(dto.diskSusceptibleMin());
         breakpoint.setDiskResistantMax(dto.diskResistantMax());
+        breakpoint.setSite(dto.siteOrDefault());
         return breakpointMapper.toResponse(breakpoint);
     }
 

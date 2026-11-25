@@ -47,6 +47,8 @@ Los paneles respetan la microbiología: no se prueba ampicilina en *K. pneumonia
 | *S. pneumoniae* resistente a cotrimoxazol | 55.7% | 58% en portadores menores de 2 años de siete regiones del Perú [11] |
 | *S. pneumoniae* resistente a eritromicina | 26.9% | 26.3% en portadores; azitromicina 28.9% [11] |
 | *S. pneumoniae* resistente a levofloxacino | 1.3% | Resistencia excepcional |
+| *S. pneumoniae* no sensible a ceftriaxona, infección no meníngea | 4.2% (284 aislamientos) | 4,5 % intermedio y 0 % resistente en adultos con enfermedad invasiva, Lima 2009-2011 [14]; 2 % en neumonía pediátrica 2016-2019 [15] |
+| *S. pneumoniae* no sensible a ceftriaxona, meningitis (LCR) | 21.2% (33 aislamientos) | 14 % a 23 % según el periodo en meningitis neumocócica en el Perú; 12 % en adultos y 23 % en niños [16] |
 | *Salmonella* resistente a ciprofloxacino | 14.5% (65.5% no sensible) | 11% resistente y 70% intermedio o resistente; *S.* Infantis fue el serotipo más frecuente [12] |
 | *Salmonella* resistente a ceftriaxona (extraintestinal) | 26.0% | *S.* Infantis multirresistente con CTX-M-65 en Perú [13] |
 
@@ -68,7 +70,7 @@ Las series de la selva provienen solo de áreas críticas, por eso superan las c
 
 > Los datos de prueba son sintéticos. Emplean establecimientos y ubigeos reales, nomenclatura WHONET y puntos de corte CLSI, y están calibrados con estudios peruanos publicados, pero no representan la situación de ningún establecimiento. El brote incluido es ficticio.
 
-**Puntos de corte que dependen del sitio de infección.** La restricción única de `Breakpoint` (microorganismo, antibiótico, norma, versión) admite un solo umbral por combinación. CLSI publica tres para penicilina en *S. pneumoniae* (meningitis, no meningitis y vía oral) y dos para ceftriaxona, así que el neumococo solo incluye eritromicina, clindamicina, levofloxacino y cotrimoxazol. Clínicamente es un panel incompleto, sobre todo en líquido cefalorraquídeo. Lo mismo ocurre, en menor grado, con cefazolina en enterobacterias: CLSI tiene un umbral sistémico y otro para infección urinaria no complicada, y el seed usa el sistémico en todas las muestras. La solución es agregar un campo de sitio de infección a `Breakpoint` e incluirlo en la restricción única.
+**Puntos de corte que dependen del sitio de infección (resuelto en V14).** `Breakpoint` tiene ahora un campo `site` (ANY, MENINGITIS, NON_MENINGITIS) que entra en la restricción única. La interpretación elige el sitio por la muestra: líquido cefalorraquídeo usa el de meningitis y el resto el de no meningitis. Se cargaron los puntos de corte CLSI de *S. pneumoniae* para ceftriaxona y cefepima (meningitis S ≤ 0,5 / R ≥ 2; no meningitis S ≤ 1 / R ≥ 4 µg/mL) y CIM sintéticas de ceftriaxona con una sola distribución (≤ 0,03: 40 %, 0,06: 18 %, 0,12: 12 %, 0,25: 9 %, 0,5: 7 %, 1: 10 %, 2: 3 %, 4: 1 %). Esa distribución reproduce a la vez la cifra no meníngea (~4 %) y la meníngea (~14 %), porque es la misma CIM leída con dos umbrales; la cifra observada en LCR (21 %) se mueve por el tamaño de muestra (33 aislamientos). Cefepima queda sin resultados porque no hay datos peruanos publicados. Quedan pendientes penicilina en neumococo (tres umbrales, incluida la vía oral) y cefazolina urinaria en enterobacterias.
 
 **Procedencia del paciente.** WHONET, el software más usado por los laboratorios, registra por defecto edad, sexo y ubicación dentro del hospital, pero no el distrito de residencia; solo lo tendría un laboratorio que lo haya agregado como campo definido por el usuario. Si la fuente real no lo trae, el mapa refleja la ubicación de los establecimientos y no la residencia de los pacientes, y así debe presentarse.
 
@@ -107,3 +109,6 @@ Si cambia una entidad, se edita `gen_seed.py` y se ejecuta `pip install bcrypt` 
 11. Resistencia antibiótica de *Streptococcus pneumoniae* en portadores nasofaríngeos sanos de siete regiones del Perú. Rev Peru Med Exp Salud Publica 2013;30(4). http://www.scielo.org.pe/scielo.php?script=sci_arttext&pid=S1726-46342013000400006
 12. Vigilancia de la resistencia antimicrobiana de *Salmonella* spp. Repositorio UPCH. https://repositorio.upch.edu.pe/entities/publication/fc6a6eef-245c-4cb5-a0d5-c5dbb931d3a8
 13. Multidrogorresistencia de *Salmonella* Infantis en Perú: un estudio mediante secuenciamiento de nueva generación. Rev Peru Med Exp Salud Publica 2019;36(1). http://www.scielo.org.pe/scielo.php?pid=S1726-46342019000100006&script=sci_arttext
+14. Castro JD et al. *S. pneumoniae* en enfermedad invasiva de adultos, Lima 2009-2011 (criterios CLSI M100-S25). Rev Peru Med Exp Salud Publica 2017;34(4):633-41. https://doi.org/10.17843/rpmesp.2017.344.2884
+15. Gomez CA et al. Rev Peru Med Exp Salud Publica 2025;42(1):63-9. https://doi.org/10.17843/rpmesp.2025.421.13847
+16. Torres García ON. Meningitis neumocócica en el Perú (vigilancia ENI). Tesis, Universidad Peruana Cayetano Heredia, 2026.

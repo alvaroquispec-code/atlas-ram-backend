@@ -230,7 +230,7 @@ public class UploadImporter {
         result.setReportedInterpretation(reported);
 
         InterpretationService.Resolution resolution = interpretationService
-                .resolve(mic, diskMm, reported, isolate.getMicroorganism(), antibiotic)
+                .resolve(mic, diskMm, reported, isolate.getMicroorganism(), antibiotic, isolate.getSpecimenType())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No se pudo interpretar " + row.antibioticCode()
                                 + ": sin punto de corte (de CIM o de disco) o valor no concluyente,"

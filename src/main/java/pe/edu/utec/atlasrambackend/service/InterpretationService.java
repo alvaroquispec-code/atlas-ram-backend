@@ -5,12 +5,15 @@ import org.springframework.stereotype.Service;
 import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.model.Antibiotic;
 import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.InterpretationSource;
 import pe.edu.utec.atlasrambackend.model.Microorganism;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -58,9 +61,19 @@ public class InterpretationService {
      */
     public Optional<Resolution> resolve(ParsedMic mic, Integer diskMm, Interpretation reported,
                                         Microorganism microorganism, Antibiotic antibiotic) {
+        return resolve(mic, diskMm, reported, microorganism, antibiotic, null);
+    }
+
+    /**
+     * Con la muestra se elige el punto de corte del sitio de infección: líquido cefalorraquídeo → meningitis.
+     * Sin muestra se asume una infección no meníngea.
+     */
+    public Optional<Resolution> resolve(ParsedMic mic, Integer diskMm, Interpretation reported,
+                                        Microorganism microorganism, Antibiotic antibiotic, Specimen specimen) {
         Optional<Breakpoint> breakpoint = mic == null && diskMm == null ? Optional.empty()
-                : breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
-                        microorganism.getId(), antibiotic.getId(), standard, version);
+                : select(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+                        microorganism.getId(), antibiotic.getId(), standard, version),
+                        BreakpointSite.forSpecimen(specimen));
         Optional<Interpretation> calculated = breakpoint
                 .flatMap(bp -> Optional.ofNullable(mic).flatMap(m -> classify(m, bp))
                         .or(() -> Optional.ofNullable(diskMm).flatMap(d -> classifyDisk(d, bp))));
@@ -69,6 +82,15 @@ public class InterpretationService {
         }
         return Optional.ofNullable(reported)
                 .map(r -> new Resolution(r, InterpretationSource.LAB_REPORTED, null, null));
+    }
+
+    /**
+     * El punto de corte del sitio pedido; si no hay uno específico, el general (ANY). Nunca se usa el de
+     * meningitis para otra infección ni al revés: si solo existe el del otro sitio, no hay punto de corte.
+     */
+    static Optional<Breakpoint> select(List<Breakpoint> candidates, BreakpointSite site) {
+        return candidates.stream().filter(b -> b.getSite() == site).findFirst()
+                .or(() -> candidates.stream().filter(b -> b.getSite() == BreakpointSite.ANY).findFirst());
     }
 
     /** Categoría que contiene todo el rango de la CIM; vacío si el rango cruza categorías. */

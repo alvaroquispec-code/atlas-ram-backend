@@ -8,12 +8,15 @@ import pe.edu.utec.atlasrambackend.interpretation.MicParser;
 import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.model.Antibiotic;
 import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.InterpretationSource;
 import pe.edu.utec.atlasrambackend.model.Microorganism;
 import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,8 +85,8 @@ class InterpretationServiceTest {
 
     @Test
     void conPuntoDeCorteLaInterpretacionEsCalculadaYSellada() {
-        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
-                .thenReturn(Optional.of(meropenemEcoli()));
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(List.of(meropenemEcoli()));
 
         var resolution = service.resolve(mic(">=16"), Interpretation.RESISTANT, ecoli, meropenem).orElseThrow();
 
@@ -95,8 +98,8 @@ class InterpretationServiceTest {
 
     @Test
     void sinPuntoDeCorteSeUsaLaDelLaboratorioSinSelloClsi() {
-        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(anyLong(), anyLong(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(anyLong(), anyLong(), anyString(), anyString()))
+                .thenReturn(List.of());
 
         var resolution = service.resolve(mic("2"), Interpretation.SUSCEPTIBLE, ecoli, meropenem).orElseThrow();
 
@@ -108,8 +111,8 @@ class InterpretationServiceTest {
 
     @Test
     void rangoAmbiguoUsaLaDelLaboratorio() {
-        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
-                .thenReturn(Optional.of(meropenemEcoli()));
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(List.of(meropenemEcoli()));
 
         var resolution = service.resolve(mic("<=4"), Interpretation.INTERMEDIATE, ecoli, meropenem).orElseThrow();
 
@@ -119,8 +122,8 @@ class InterpretationServiceTest {
 
     @Test
     void sinCalculoPosibleNiInterpretacionDelLaboratorioNoHayResultado() {
-        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
-                .thenReturn(Optional.of(meropenemEcoli()));
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(List.of(meropenemEcoli()));
 
         assertThat(service.resolve(mic("<=4"), null, ecoli, meropenem)).isEmpty();
         assertThat(service.resolve(null, null, ecoli, meropenem)).isEmpty();
@@ -158,8 +161,8 @@ class InterpretationServiceTest {
 
     @Test
     void sinCimConcluyenteSeUsaElHaloYQuedaSellado() {
-        when(breakpointRepository.findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
-                .thenReturn(Optional.of(withDisk()));
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(List.of(withDisk()));
 
         var soloHalo = service.resolve(null, 24, null, ecoli, meropenem).orElseThrow();
         assertThat(soloHalo.interpretation()).isEqualTo(Interpretation.SUSCEPTIBLE);
@@ -182,5 +185,36 @@ class InterpretationServiceTest {
         diskOnly.setDiskResistantMax(15);
         assertThat(InterpretationService.classify(mic("0.5"), diskOnly)).isEmpty();
         assertThat(InterpretationService.classifyDisk(22, diskOnly)).contains(Interpretation.SUSCEPTIBLE);
+    }
+
+    private static Breakpoint ceftriaxonePneumococcus(BreakpointSite site, double s, double r) {
+        Breakpoint bp = new Breakpoint();
+        bp.setSite(site);
+        bp.setSusceptibleMax(BigDecimal.valueOf(s));
+        bp.setResistantMin(BigDecimal.valueOf(r));
+        return bp;
+    }
+
+    @Test
+    void laMismaCimDeCeftriaxonaEsSensibleEnNeumoniaEIntermediaEnMeningitis() {
+        // CLSI, S. pneumoniae frente a ceftriaxona: meningitis S ≤ 0,5 / R ≥ 2; otras infecciones S ≤ 1 / R ≥ 4.
+        when(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(1L, 11L, "CLSI", "2024"))
+                .thenReturn(List.of(ceftriaxonePneumococcus(BreakpointSite.MENINGITIS, 0.5, 2),
+                        ceftriaxonePneumococcus(BreakpointSite.NON_MENINGITIS, 1, 4)));
+
+        var lcr = service.resolve(mic("1"), null, null, ecoli, meropenem, Specimen.CSF).orElseThrow();
+        var sangre = service.resolve(mic("1"), null, null, ecoli, meropenem, Specimen.BLOOD).orElseThrow();
+
+        assertThat(lcr.interpretation()).isEqualTo(Interpretation.INTERMEDIATE);
+        assertThat(sangre.interpretation()).isEqualTo(Interpretation.SUSCEPTIBLE);
+    }
+
+    @Test
+    void nuncaSeUsaElPuntoDeCorteDeOtroSitio() {
+        var soloMeningitis = List.of(ceftriaxonePneumococcus(BreakpointSite.MENINGITIS, 0.5, 2));
+        var general = ceftriaxonePneumococcus(BreakpointSite.ANY, 1, 4);
+
+        assertThat(InterpretationService.select(soloMeningitis, BreakpointSite.NON_MENINGITIS)).isEmpty();
+        assertThat(InterpretationService.select(List.of(general), BreakpointSite.MENINGITIS)).contains(general);
     }
 }

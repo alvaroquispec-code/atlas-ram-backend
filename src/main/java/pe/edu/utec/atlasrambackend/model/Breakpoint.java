@@ -15,7 +15,7 @@ import java.math.BigDecimal;
         name = "breakpoint",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_breakpoint_combo",
-                columnNames = {"microorganism_id", "antibiotic_id", "standard", "version"}
+                columnNames = {"microorganism_id", "antibiotic_id", "standard", "version", "site"}
         )
 )
 @Getter
@@ -61,4 +61,10 @@ public class Breakpoint {
     @Positive
     @Column(name = "disk_resistant_max")
     private Integer diskResistantMax;
+
+    /** Sitio de infección (V14). ANY salvo los pares con punto de corte distinto para meningitis. */
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private BreakpointSite site = BreakpointSite.ANY;
 }

@@ -10,9 +10,11 @@ import pe.edu.utec.atlasrambackend.dto.ReinterpretationReportDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.model.InterpretationSource;
 import pe.edu.utec.atlasrambackend.model.MicQualifier;
+import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
 
 import java.math.BigDecimal;
@@ -58,8 +60,8 @@ public class ReinterpretationService {
     }
 
     /** Un resultado guardado, con lo necesario para reinterpretarlo. */
-    record Row(long id, long microorganismId, long antibioticId, String microorganism, String antibiotic,
-               BigDecimal mic, MicQualifier qualifier, Integer diskMm, Interpretation current,
+    record Row(long id, long microorganismId, long antibioticId, Specimen specimen, String microorganism,
+               String antibiotic, BigDecimal mic, MicQualifier qualifier, Integer diskMm, Interpretation current,
                Interpretation reported, InterpretationSource source, String standard, String version) {
     }
 
@@ -81,15 +83,16 @@ public class ReinterpretationService {
             throw new BusinessRuleException("Solo se puede aplicar la edición activa (" + standard + " " + activeVersion
                     + "). Para pasar a " + version + ", primero cambie BREAKPOINTS_VERSION en el servidor.");
         }
-        Map<String, Breakpoint> breakpoints = new HashMap<>();
-        breakpointRepository.findByStandardAndVersion(standard, version).forEach(bp ->
-                breakpoints.put(key(bp.getMicroorganism().getId(), bp.getAntibiotic().getId()), bp));
+        Map<String, List<Breakpoint>> breakpoints = new HashMap<>();
+        breakpointRepository.findByStandardAndVersion(standard, version).forEach(bp -> breakpoints
+                .computeIfAbsent(key(bp.getMicroorganism().getId(), bp.getAntibiotic().getId()), k -> new ArrayList<>())
+                .add(bp));
         if (breakpoints.isEmpty()) {
             throw new BusinessRuleException("No hay puntos de corte cargados para " + standard + " " + version);
         }
 
         List<Row> rows = jdbc.query("""
-                select r.id, i.microorganism_id, r.antibiotic_id,
+                select r.id, i.microorganism_id, r.antibiotic_id, i.specimen_type,
                        m.genus || ' ' || coalesce(m.species, '') as microorganism, a.name as antibiotic,
                        r.mic_value, r.mic_qualifier, r.disk_diffusion_mm, r.interpretation,
                        r.reported_interpretation, r.interpretation_source, r.breakpoint_standard, r.breakpoint_version
@@ -100,7 +103,7 @@ public class ReinterpretationService {
                 where r.mic_value is not null or r.disk_diffusion_mm is not null
                 """, new MapSqlParameterSource(), (rs, n) -> new Row(
                 rs.getLong("id"), rs.getLong("microorganism_id"), rs.getLong("antibiotic_id"),
-                rs.getString("microorganism").trim(), rs.getString("antibiotic"),
+                Specimen.valueOf(rs.getString("specimen_type")), rs.getString("microorganism").trim(), rs.getString("antibiotic"),
                 rs.getBigDecimal("mic_value"),
                 rs.getString("mic_qualifier") == null ? null : MicQualifier.valueOf(rs.getString("mic_qualifier")),
                 (Integer) rs.getObject("disk_diffusion_mm"),
@@ -115,7 +118,10 @@ public class ReinterpretationService {
         Map<String, int[]> groups = new HashMap<>();
         List<MapSqlParameterSource> updates = new ArrayList<>();
         for (Row row : rows) {
-            Breakpoint bp = breakpoints.get(key(row.microorganismId(), row.antibioticId()));
+            // Mismo criterio que al cargar: punto de corte del sitio de infección de la muestra.
+            Breakpoint bp = InterpretationService.select(
+                    breakpoints.getOrDefault(key(row.microorganismId(), row.antibioticId()), List.of()),
+                    BreakpointSite.forSpecimen(row.specimen())).orElse(null);
             if (bp == null) {
                 withoutBreakpoint++;
                 continue;

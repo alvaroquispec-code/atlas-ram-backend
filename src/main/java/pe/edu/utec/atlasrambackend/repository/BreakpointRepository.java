@@ -2,13 +2,14 @@ package pe.edu.utec.atlasrambackend.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface BreakpointRepository extends JpaRepository<Breakpoint, Long> {
 
-    Optional<Breakpoint> findByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+    /** Puede haber más de uno: uno por sitio de infección (ver BreakpointSite). */
+    List<Breakpoint> findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
             Long microorganismId, Long antibioticId, String standard, String version);
 
     List<Breakpoint> findByStandardAndVersion(String standard, String version);
@@ -19,6 +20,6 @@ public interface BreakpointRepository extends JpaRepository<Breakpoint, Long> {
                     + "order by b.standard, b.version desc")
     List<Object[]> countByEdition();
 
-    boolean existsByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
-            Long microorganismId, Long antibioticId, String standard, String version);
+    boolean existsByMicroorganismIdAndAntibioticIdAndStandardAndVersionAndSite(
+            Long microorganismId, Long antibioticId, String standard, String version, BreakpointSite site);
 }

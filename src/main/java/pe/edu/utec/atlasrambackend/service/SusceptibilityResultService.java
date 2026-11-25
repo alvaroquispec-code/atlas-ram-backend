@@ -76,7 +76,8 @@ public class SusceptibilityResultService {
                 : new ParsedMic(dto.micQualifier() == null ? MicQualifier.EQ : dto.micQualifier(), dto.micValue());
 
         InterpretationService.Resolution resolution = interpretationService
-                .resolve(mic, dto.diskDiffusionMm(), dto.reportedInterpretation(), isolate.getMicroorganism(), antibiotic)
+                .resolve(mic, dto.diskDiffusionMm(), dto.reportedInterpretation(), isolate.getMicroorganism(), antibiotic,
+                        isolate.getSpecimenType())
                 .orElseThrow(() -> new BusinessRuleException(
                         "No hay punto de corte (de CIM o de disco) para esa combinación, o el valor no es concluyente, "
                                 + "y el laboratorio no reportó interpretación"));
