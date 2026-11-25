@@ -3,8 +3,11 @@ package pe.edu.utec.atlasrambackend.repository;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
+import pe.edu.utec.atlasrambackend.model.MicQualifier;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -129,14 +132,43 @@ public class AntibiogramQueries {
                              String microorganismName, String antibioticCode, String interpretation) {
     }
 
-    /** Una fila del antibiograma: un par microorganismo-antibiótico. */
+    /**
+     * Una fila del antibiograma: un par microorganismo-antibiótico. site es null salvo en los pares con
+     * punto de corte por sitio de infección, que salen en dos filas (meningitis y no meningitis).
+     */
     public record Row(Long microorganismId, String microorganismName, Long antibioticId, String antibioticName,
                       long tested, long susceptible, long intermediate, long resistant,
-                      long identified, long testedAll, long realCount) {
+                      long identified, long testedAll, long realCount, BreakpointSite site) {
+
+        public Row(Long microorganismId, String microorganismName, Long antibioticId, String antibioticName,
+                   long tested, long susceptible, long intermediate, long resistant,
+                   long identified, long testedAll, long realCount) {
+            this(microorganismId, microorganismName, antibioticId, antibioticName, tested, susceptible,
+                    intermediate, resistant, identified, testedAll, realCount, null);
+        }
+    }
+
+    /**
+     * Resultado individual de un par con puntos de corte por sitio, con su CIM y halo, para volver a
+     * clasificarlo con cada uno. first = es el primer aislamiento del paciente (regla de M39).
+     */
+    public record SiteResultRow(Long microorganismId, Long antibioticId, boolean first, boolean identified,
+                                boolean real, BigDecimal micValue, MicQualifier micQualifier, Integer diskMm) {
     }
 
     public record DistrictRow(Long districtId, long tested, long susceptible, long resistant) {
     }
+
+    /** Resultados (todos, no solo el primero) de los pares que tienen puntos de corte por sitio en la edición. */
+    private static final String SITE_RESULTS = RANKED_ISOLATES + """
+            select x.microorganism_id, r.antibiotic_id, x.rn = 1 as first, x.patient_key is not null as identified,
+                   x.data_origin = 'REAL' as is_real, r.mic_value, r.mic_qualifier, r.disk_diffusion_mm
+            from ranked x
+            join susceptibility_result r on r.isolate_id = x.id
+            where exists (select 1 from breakpoint b
+                          where b.microorganism_id = x.microorganism_id and b.antibiotic_id = r.antibiotic_id
+                            and b.standard = :standard and b.version = :version and b.site <> 'ANY')
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -149,6 +181,23 @@ public class AntibiogramQueries {
                                  LocalDate from, LocalDate to, DataOrigin origin) {
         return jdbc.query(ANTIBIOGRAM, params(microorganismId, districtId, facilityIds, from, to, origin),
                 AntibiogramQueries::mapRow);
+    }
+
+    /** facilityIds null = todos los establecimientos. origin null = toda procedencia. */
+    public List<SiteResultRow> siteResults(Long microorganismId, Long districtId, Collection<Long> facilityIds,
+                                           LocalDate from, LocalDate to, DataOrigin origin,
+                                           String standard, String version) {
+        MapSqlParameterSource params = params(microorganismId, districtId, facilityIds, from, to, origin)
+                .addValue("standard", standard)
+                .addValue("version", version);
+        return jdbc.query(SITE_RESULTS, params, (rs, i) -> {
+            String qualifier = rs.getString("mic_qualifier");
+            Integer disk = rs.getObject("disk_diffusion_mm", Integer.class);
+            return new SiteResultRow(rs.getLong("microorganism_id"), rs.getLong("antibiotic_id"),
+                    rs.getBoolean("first"), rs.getBoolean("identified"), rs.getBoolean("is_real"),
+                    rs.getBigDecimal("mic_value"), qualifier == null ? null : MicQualifier.valueOf(qualifier),
+                    disk);
+        });
     }
 
     public List<DistrictRow> byDistrict(Long microorganismId, Long antibioticId, LocalDate from, LocalDate to,

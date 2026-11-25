@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,9 +12,15 @@ import pe.edu.utec.atlasrambackend.dto.ReferralFacilityRow;
 import pe.edu.utec.atlasrambackend.dto.TrendResponseDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
+import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
+import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
 import pe.edu.utec.atlasrambackend.model.District;
+import pe.edu.utec.atlasrambackend.model.Interpretation;
+import pe.edu.utec.atlasrambackend.model.MicQualifier;
 import pe.edu.utec.atlasrambackend.repository.AntibiogramQueries;
 import pe.edu.utec.atlasrambackend.repository.AntibioticRepository;
+import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
 import pe.edu.utec.atlasrambackend.repository.DistrictRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
@@ -24,6 +31,7 @@ import pe.edu.utec.atlasrambackend.model.DataOrigin;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,12 +47,22 @@ public class AntibiogramService {
     private final MicroorganismRepository microorganismRepository;
     private final AntibioticRepository antibioticRepository;
     private final IsolateRepository isolateRepository;
+    private final BreakpointRepository breakpointRepository;
+    /** Edición activa de puntos de corte: la misma que usa InterpretationService al cargar. */
+    private final String standard;
+    private final String version;
 
     public AntibiogramService(AntibiogramQueries antibiogramQueries,
                               DistrictRepository districtRepository,
                               MicroorganismRepository microorganismRepository,
                               AntibioticRepository antibioticRepository,
-                              IsolateRepository isolateRepository) {
+                              IsolateRepository isolateRepository,
+                              BreakpointRepository breakpointRepository,
+                              @Value("${breakpoints.standard:CLSI}") String standard,
+                              @Value("${breakpoints.version:2024}") String version) {
+        this.breakpointRepository = breakpointRepository;
+        this.standard = standard;
+        this.version = version;
         this.antibiogramQueries = antibiogramQueries;
         this.districtRepository = districtRepository;
         this.microorganismRepository = microorganismRepository;
@@ -65,8 +83,7 @@ public class AntibiogramService {
                                                   boolean includeInsufficient,
                                                   DataOrigin origin) {
         validateRange(from, to);
-        return toEntries(antibiogramQueries.antibiogram(microorganismId, districtId, null, from, to, origin),
-                includeInsufficient);
+        return toEntries(rows(microorganismId, districtId, null, from, to, origin), includeInsufficient);
     }
 
     /** Filas de la consulta convertidas a la respuesta, con porcentajes e intervalos. */
@@ -89,7 +106,94 @@ public class AntibiogramService {
                 r.tested() >= MIN_RESULTS,
                 r.testedAll() - r.tested(),
                 Proportions.percentage(r.identified(), r.tested()),
-                Proportions.percentage(r.realCount(), r.tested()));
+                Proportions.percentage(r.realCount(), r.tested()),
+                r.site());
+    }
+
+    /**
+     * Antibiograma con los pares por sitio de infección desdoblados. La consulta agregada mezcla las
+     * interpretaciones de LCR (criterio meníngeo) con las del resto; para esos pares se reemplaza esa fila por
+     * una por sitio, aplicando cada punto de corte a la CIM de todos los primeros aislamientos.
+     */
+    private List<AntibiogramQueries.Row> rows(Long microorganismId, Long districtId, java.util.Collection<Long> facilityIds,
+                                              LocalDate from, LocalDate to, DataOrigin origin) {
+        List<AntibiogramQueries.Row> rows = antibiogramQueries.antibiogram(microorganismId, districtId, facilityIds,
+                from, to, origin);
+        List<Breakpoint> siteBreakpoints = breakpointRepository.findByStandardAndVersion(standard, version).stream()
+                .filter(b -> b.getSite() != BreakpointSite.ANY)
+                .toList();
+        if (siteBreakpoints.isEmpty()) {
+            return rows;
+        }
+        return splitBySite(rows, antibiogramQueries.siteResults(microorganismId, districtId, facilityIds, from, to,
+                origin, standard, version), siteBreakpoints);
+    }
+
+    /**
+     * Por qué se aplica cada punto de corte a todos los aislamientos y no solo a los de su muestra: el
+     * antibiograma responde "si el próximo paciente tiene meningitis, ¿qué probabilidad hay de que la
+     * ceftriaxona sirva?". La distribución de CIM del neumococo es la misma; lo que cambia es el umbral. Así lo
+     * reportan las redes de vigilancia (p. ej. SENTRY) y además el denominador no se reduce a los pocos LCR.
+     * Un resultado cuya CIM o halo no se puede clasificar con ese punto de corte no entra en esa fila.
+     */
+    static List<AntibiogramQueries.Row> splitBySite(List<AntibiogramQueries.Row> rows,
+                                                    List<AntibiogramQueries.SiteResultRow> results,
+                                                    List<Breakpoint> siteBreakpoints) {
+        Map<String, List<AntibiogramQueries.SiteResultRow>> byPair = results.stream()
+                .collect(Collectors.groupingBy(r -> r.microorganismId() + ":" + r.antibioticId()));
+        List<AntibiogramQueries.Row> out = new java.util.ArrayList<>();
+        for (AntibiogramQueries.Row row : rows) {
+            List<Breakpoint> bps = siteBreakpoints.stream()
+                    .filter(b -> b.getMicroorganism().getId().equals(row.microorganismId())
+                            && b.getAntibiotic().getId().equals(row.antibioticId()))
+                    .sorted(java.util.Comparator.comparing(Breakpoint::getSite))
+                    .toList();
+            if (bps.isEmpty()) {
+                out.add(row);
+                continue;
+            }
+            List<AntibiogramQueries.SiteResultRow> pair = byPair.getOrDefault(
+                    row.microorganismId() + ":" + row.antibioticId(), List.of());
+            for (Breakpoint bp : bps) {
+                long tested = 0, s = 0, i = 0, r = 0, identified = 0, real = 0, all = 0;
+                for (AntibiogramQueries.SiteResultRow result : pair) {
+                    Optional<Interpretation> category = classify(result, bp);
+                    if (category.isEmpty()) {
+                        continue;
+                    }
+                    all++;
+                    if (!result.first()) {
+                        continue;
+                    }
+                    tested++;
+                    switch (category.get()) {
+                        case SUSCEPTIBLE -> s++;
+                        case INTERMEDIATE -> i++;
+                        case RESISTANT -> r++;
+                    }
+                    if (result.identified()) identified++;
+                    if (result.real()) real++;
+                }
+                if (tested > 0) {
+                    out.add(new AntibiogramQueries.Row(row.microorganismId(), row.microorganismName(),
+                            row.antibioticId(), row.antibioticName() + " (" + label(bp.getSite()) + ")",
+                            tested, s, i, r, identified, all, real, bp.getSite()));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static Optional<Interpretation> classify(AntibiogramQueries.SiteResultRow result, Breakpoint bp) {
+        Optional<Interpretation> byMic = result.micValue() == null ? Optional.empty()
+                : InterpretationService.classify(new ParsedMic(
+                        result.micQualifier() == null ? MicQualifier.EQ : result.micQualifier(), result.micValue()), bp);
+        return byMic.or(() -> result.diskMm() == null ? Optional.empty()
+                : InterpretationService.classifyDisk(result.diskMm(), bp));
+    }
+
+    private static String label(BreakpointSite site) {
+        return site == BreakpointSite.MENINGITIS ? "meningitis" : "no meningitis";
     }
 
     /**
@@ -141,7 +245,7 @@ public class AntibiogramService {
                 .toList();
         List<AntibiogramResponseDTO> entries = top.isEmpty()
                 ? List.of()
-                : toEntries(antibiogramQueries.antibiogram(null, null,
+                : toEntries(rows(null, null,
                         top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to, origin), false);
 
         return new ReferralAntibiogramResponseDTO(district.getName(), facilities, entries);

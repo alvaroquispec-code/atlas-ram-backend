@@ -1,5 +1,7 @@
 package pe.edu.utec.atlasrambackend.dto;
 
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+
 /**
  * Una fila del antibiograma acumulado (CLSI M39): primer aislamiento por paciente y especie.
  * Los porcentajes van de 0 a 100; los intervalos son de Wilson al 95 %.
@@ -28,5 +30,11 @@ public record AntibiogramResponseDTO(
         /** Porcentaje de aislamientos con paciente identificado: sin él no se pueden excluir repetidos. */
         double patientIdentifiedPercentage,
         /** Porcentaje de los aislamientos de la fila que vienen de un laboratorio real (no sintéticos). */
-        double realDataPercentage
+        double realDataPercentage,
+        /**
+         * Solo en pares con punto de corte por sitio de infección (S. pneumoniae × ceftriaxona y cefepima):
+         * MENINGITIS o NON_MENINGITIS. Ese par sale en dos filas; cada una aplica su punto de corte a la CIM
+         * de TODOS los primeros aislamientos. null en el resto.
+         */
+        BreakpointSite breakpointSite
 ) {}

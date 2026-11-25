@@ -2,8 +2,14 @@ package pe.edu.utec.atlasrambackend.service;
 
 import org.junit.jupiter.api.Test;
 import pe.edu.utec.atlasrambackend.dto.AntibiogramResponseDTO;
+import pe.edu.utec.atlasrambackend.model.Antibiotic;
+import pe.edu.utec.atlasrambackend.model.Breakpoint;
+import pe.edu.utec.atlasrambackend.model.BreakpointSite;
+import pe.edu.utec.atlasrambackend.model.MicQualifier;
+import pe.edu.utec.atlasrambackend.model.Microorganism;
 import pe.edu.utec.atlasrambackend.repository.AntibiogramQueries;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,5 +80,60 @@ class AntibiogramServiceTest {
                 AntibiogramService.TrendInterval.QUARTER);
         assertThat(flat.direction()).isEqualTo("NO_SIGNIFICANT_TREND");
         assertThat(flat.changePerYear()).isCloseTo(-4.0, within(1e-9));
+    }
+
+    private static Breakpoint ceftriaxone(BreakpointSite site, double sMax, double rMin) {
+        Microorganism spn = new Microorganism();
+        spn.setId(9L);
+        Antibiotic cro = new Antibiotic();
+        cro.setId(5L);
+        Breakpoint bp = new Breakpoint();
+        bp.setMicroorganism(spn);
+        bp.setAntibiotic(cro);
+        bp.setSite(site);
+        bp.setSusceptibleMax(BigDecimal.valueOf(sMax));
+        bp.setResistantMin(BigDecimal.valueOf(rMin));
+        return bp;
+    }
+
+    private static AntibiogramQueries.SiteResultRow cim(String value, boolean first) {
+        return new AntibiogramQueries.SiteResultRow(9L, 5L, first, true, false, new BigDecimal(value), null, null);
+    }
+
+    @Test
+    void ceftriaxonaDelNeumococoSaleEnDosFilasConCadaPuntoDeCorteSobreTodosLosAislamientos() {
+        // Fila mezclada de la consulta (no debe sobrevivir) y otra que no depende del sitio (debe quedar igual).
+        var mezclada = new AntibiogramQueries.Row(9L, "Streptococcus pneumoniae", 5L, "Ceftriaxona", 4, 3, 1, 0, 4, 5, 0);
+        var eritromicina = new AntibiogramQueries.Row(9L, "Streptococcus pneumoniae", 7L, "Eritromicina", 4, 3, 0, 1, 4, 4, 0);
+        // CIM 0,25 / 1 / 2 / 4 en primeros aislamientos y un repetido con CIM 1.
+        var resultados = List.of(cim("0.25", true), cim("1", true), cim("2", true), cim("4", true), cim("1", false));
+        var puntos = List.of(ceftriaxone(BreakpointSite.NON_MENINGITIS, 1, 4), ceftriaxone(BreakpointSite.MENINGITIS, 0.5, 2));
+
+        var filas = AntibiogramService.splitBySite(List.of(mezclada, eritromicina), resultados, puntos);
+
+        assertThat(filas).extracting(AntibiogramQueries.Row::antibioticName)
+                .containsExactly("Ceftriaxona (meningitis)", "Ceftriaxona (no meningitis)", "Eritromicina");
+        var meningitis = filas.get(0);   // S ≤ 0,5 / R ≥ 2 → 0,25 S · 1 I · 2 R · 4 R
+        assertThat(List.of(meningitis.tested(), meningitis.susceptible(), meningitis.intermediate(), meningitis.resistant()))
+                .containsExactly(4L, 1L, 1L, 2L);
+        assertThat(meningitis.testedAll()).isEqualTo(5);
+        assertThat(meningitis.site()).isEqualTo(BreakpointSite.MENINGITIS);
+        var otras = filas.get(1);        // S ≤ 1 / R ≥ 4 → 0,25 S · 1 S · 2 I · 4 R
+        assertThat(List.of(otras.tested(), otras.susceptible(), otras.intermediate(), otras.resistant()))
+                .containsExactly(4L, 2L, 1L, 1L);
+        assertThat(filas.get(2)).isSameAs(eritromicina);
+    }
+
+    @Test
+    void unaCimQueCruzaCategoriasNoEntraEnEsaFila() {
+        var fila = new AntibiogramQueries.Row(9L, "Streptococcus pneumoniae", 5L, "Ceftriaxona", 1, 1, 0, 0, 1, 1, 0);
+        // "≤ 1": sensible con S ≤ 1, pero con S ≤ 0,5 podría ser 0,5 (S) o 1 (I): no se clasifica.
+        var menorIgualUno = new AntibiogramQueries.SiteResultRow(9L, 5L, true, true, false, new BigDecimal("1"),
+                MicQualifier.LE, null);
+
+        var filas = AntibiogramService.splitBySite(List.of(fila), List.of(menorIgualUno),
+                List.of(ceftriaxone(BreakpointSite.MENINGITIS, 0.5, 2), ceftriaxone(BreakpointSite.NON_MENINGITIS, 1, 4)));
+
+        assertThat(filas).extracting(AntibiogramQueries.Row::antibioticName).containsExactly("Ceftriaxona (no meningitis)");
     }
 }
