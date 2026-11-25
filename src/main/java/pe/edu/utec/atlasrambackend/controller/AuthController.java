@@ -6,10 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.edu.utec.atlasrambackend.dto.AuthResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.ChangePasswordRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.FacilityResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.LoginRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RefreshRequestDTO;
@@ -64,6 +66,20 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponseDTO> refresh(@Valid @RequestBody RefreshRequestDTO dto) {
         return ResponseEntity.ok(authService.refresh(dto));
+    }
+
+    /** El usuario autenticado cambia su contraseña; responde con tokens nuevos y cierra sus otras sesiones. */
+    @PutMapping("/me/password")
+    public ResponseEntity<AuthResponseDTO> changePassword(@Valid @RequestBody ChangePasswordRequestDTO dto,
+                                                          Authentication authentication) {
+        return ResponseEntity.ok(authService.changePassword(authentication.getName(), dto));
+    }
+
+    /** Cierra la sesión en todos los dispositivos, incluido este. */
+    @PostMapping("/me/logout-all")
+    public ResponseEntity<Void> logoutAll(Authentication authentication) {
+        authService.revokeAllSessions(authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

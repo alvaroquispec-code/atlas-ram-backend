@@ -7,12 +7,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.config.JwtService;
 import pe.edu.utec.atlasrambackend.dto.AuthResponseDTO;
+import pe.edu.utec.atlasrambackend.dto.ChangePasswordRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.LoginRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RefreshRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.RegisterRequestDTO;
+import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.exception.DuplicateResourceException;
 import pe.edu.utec.atlasrambackend.exception.InvalidCredentialsException;
 import pe.edu.utec.atlasrambackend.exception.InvalidTokenException;
+import pe.edu.utec.atlasrambackend.exception.ResourceNotFoundException;
 import pe.edu.utec.atlasrambackend.model.Role;
 import pe.edu.utec.atlasrambackend.model.User;
 import pe.edu.utec.atlasrambackend.repository.UserRepository;
@@ -59,22 +62,53 @@ public class AuthService {
         return tokensFor(user);
     }
 
+    /** Rechaza el refresh token si venció, si el usuario está inactivo o si su sesión fue revocada. */
     @Transactional(readOnly = true)
     public AuthResponseDTO refresh(RefreshRequestDTO dto) {
-        String email = jwtService.extractEmailFromRefreshToken(dto.refreshToken());
-        if (email == null) {
-            throw new InvalidTokenException("El refresh token es inválido o expiró");
-        }
-        User user = userRepository.findByEmail(email)
+        JwtService.TokenSubject subject = jwtService.parseRefreshToken(dto.refreshToken())
+                .orElseThrow(() -> new InvalidTokenException("El refresh token es inválido o expiró"));
+        User user = userRepository.findByEmail(subject.email())
                 .filter(User::isActive)
-                .orElseThrow(() -> new InvalidTokenException("Usuario inactivo o inexistente"));
+                .filter(u -> u.getTokenVersion() == subject.version())
+                .orElseThrow(() -> new InvalidTokenException("La sesión fue cerrada o el usuario está inactivo"));
         return tokensFor(user);
+    }
+
+    /**
+     * Cambia la contraseña del usuario autenticado. Exige la contraseña actual (un token robado no basta
+     * para tomar la cuenta), revoca todas las demás sesiones y devuelve tokens nuevos para la actual.
+     */
+    @Transactional
+    public AuthResponseDTO changePassword(String email, ChangePasswordRequestDTO dto) {
+        User user = getActiveOrThrow(email);
+        if (!passwordEncoder.matches(dto.currentPassword(), user.getPasswordHash())) {
+            // 422 y no 401: el cliente no debe interpretarlo como sesión vencida.
+            throw new BusinessRuleException("La contraseña actual no es correcta");
+        }
+        if (passwordEncoder.matches(dto.newPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("La nueva contraseña debe ser distinta de la actual");
+        }
+        user.setPasswordHash(passwordEncoder.encode(dto.newPassword()));
+        user.revokeSessions();
+        return tokensFor(user);
+    }
+
+    /** "Cerrar sesión en todos los dispositivos": invalida todos los tokens del usuario, incluido el actual. */
+    @Transactional
+    public void revokeAllSessions(String email) {
+        getActiveOrThrow(email).revokeSessions();
+    }
+
+    private User getActiveOrThrow(String email) {
+        return userRepository.findByEmail(email)
+                .filter(User::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", email));
     }
 
     private AuthResponseDTO tokensFor(User user) {
         return AuthResponseDTO.of(
-                jwtService.generateAccessToken(user.getEmail(), user.getRole()),
-                jwtService.generateRefreshToken(user.getEmail()),
+                jwtService.generateAccessToken(user.getEmail(), user.getRole(), user.getTokenVersion()),
+                jwtService.generateRefreshToken(user.getEmail(), user.getTokenVersion()),
                 jwtService.getAccessExpirationSeconds(),
                 user.getEmail(),
                 user.getFullName(),

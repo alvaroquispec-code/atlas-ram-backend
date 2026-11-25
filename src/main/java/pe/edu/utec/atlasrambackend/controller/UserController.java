@@ -8,9 +8,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import pe.edu.utec.atlasrambackend.dto.ResetPasswordRequestDTO;
 import pe.edu.utec.atlasrambackend.dto.UserResponseDTO;
 import pe.edu.utec.atlasrambackend.model.Role;
 import pe.edu.utec.atlasrambackend.service.UserService;
@@ -47,5 +51,11 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> setActive(@PathVariable Long id,
                                                      @RequestParam boolean active) {
         return ResponseEntity.ok(userService.setActive(id, active));
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<UserResponseDTO> resetPassword(@PathVariable Long id,
+                                                         @Valid @RequestBody ResetPasswordRequestDTO dto) {
+        return ResponseEntity.ok(userService.resetPassword(id, dto.newPassword()));
     }
 }

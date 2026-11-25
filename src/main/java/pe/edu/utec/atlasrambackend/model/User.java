@@ -54,6 +54,18 @@ public class User {
     @Column(name="created_at", nullable = false,updatable = false)
     private Instant createdAt= Instant.now();
 
+    /**
+     * Versión de sesión: viaja en cada JWT (claim "ver"). Al incrementarla, todos los tokens emitidos
+     * antes dejan de valer. Ver V12__version_de_sesion.sql.
+     */
+    @Column(name="token_version", nullable = false)
+    private int tokenVersion = 1;
+
+    /** Invalida todos los tokens emitidos hasta ahora. */
+    public void revokeSessions() {
+        tokenVersion++;
+    }
+
 
 
 }

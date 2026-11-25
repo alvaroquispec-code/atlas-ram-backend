@@ -352,6 +352,8 @@ Manejar los errores de forma global garantiza respuestas consistentes para el cl
 
 - **Autenticación sin estado con JWT.** El login entrega un token de acceso de una hora y un token de renovación. Un filtro valida el token en cada petición y carga el usuario en el contexto de seguridad.
 - **Contraseñas con BCrypt.** Nunca se almacena ni se devuelve la contraseña en texto plano.
+- **Sesiones revocables.** Un JWT firmado vale hasta que vence, así que cada token lleva la versión de sesión del usuario (claim `ver`, columna `app_user.token_version`) y el filtro lo rechaza si no coincide. Cambiar la contraseña, que el administrador la restablezca, desactivar la cuenta o pedir «cerrar sesión en todos los dispositivos» incrementa la versión: los tokens anteriores, incluidos los de renovación de 7 días, dejan de valer en la siguiente petición.
+- **Cambio de contraseña con la contraseña actual.** `PUT /auth/me/password` exige la contraseña vigente, de modo que un token robado no basta para tomar la cuenta. Responde 422 (no 401) si es incorrecta, para que el cliente no lo confunda con una sesión vencida.
 - **Cuatro roles.** `ADMIN`, `LAB_TECHNICIAN`, `EPIDEMIOLOGIST` y `PUBLIC_VIEWER`, guardados en la base y en el token. Los métodos sensibles se protegen con `@PreAuthorize`.
 - **Registro con permisos mínimos.** Todo usuario nuevo se crea como `PUBLIC_VIEWER`; solo un administrador puede elevar su rol.
 - **Control por establecimiento.** Un técnico de laboratorio solo puede registrar aislamientos y cargar archivos de los establecimientos que tiene asignados. Lo verifica `@PreAuthorize` con un evaluador propio sobre la relación `user_facility`.
@@ -517,6 +519,9 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 |---|---|---|
 | `POST` | `/auth/register` | público |
 | `POST` | `/auth/login` | público |
+| `PUT` | `/auth/me/password` | autenticado: cambia su contraseña (exige la actual); cierra sus otras sesiones y devuelve tokens nuevos |
+| `POST` | `/auth/me/logout-all` | autenticado: cierra la sesión en todos sus dispositivos |
+| `PUT` | `/users/{id}/password` | administrador: restablece la contraseña de un usuario y cierra sus sesiones |
 | `GET` | `/districts`, `/microorganisms`, `/antibiotics`, `/facilities` | público |
 | `GET` | `/antibiogram` | público |
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
