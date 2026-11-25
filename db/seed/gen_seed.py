@@ -815,6 +815,13 @@ def main():
         for table in ("district", "facility", "app_user", "microorganism", "antibiotic", "breakpoint",
                       "data_upload", "isolate", "susceptibility_result"):
             fh.write(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), (SELECT MAX(id) FROM {table}));\n")
+        # El tope del panel equivale a ">=": mismo criterio que la migracion V13
+        caps = ", ".join(f"('{abx}', {mic:g})" for abx, mic in MIC_CAP.items())
+        fh.write("-- El tope del panel equivale a \">=\" (MIC_CAP): mismo criterio que la migracion V13\n"
+                 "UPDATE susceptibility_result r SET mic_qualifier = 'GE' FROM isolate i, antibiotic a, (VALUES "
+                 + caps + ") AS cap(code, mic) WHERE i.id = r.isolate_id AND a.id = r.antibiotic_id "
+                 "AND a.code = cap.code AND i.data_origin = 'SYNTHETIC' AND r.mic_qualifier IS NULL "
+                 "AND r.mic_value = cap.mic;\n")
         fh.write("\nCOMMIT;\n")
 
     print(f"aislamientos: {len(isolate_rows)}  resultados: {len(result_rows)}  breakpoints: {len(breakpoint_rows)}  "
