@@ -84,6 +84,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/alerts/**")
                         .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers("/alerts/**").hasAnyRole("EPIDEMIOLOGIST", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/fhir/**")
+                        .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/isolates/**")
                         .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/isolates/**", "/results/**")

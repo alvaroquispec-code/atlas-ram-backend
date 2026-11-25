@@ -478,6 +478,20 @@ por su nombre, en cualquier orden; las que el sistema no usa se ignoran. Una fil
 
 **Procedencia.** `POST /uploads` recibe `origin=REAL` o `origin=SYNTHETIC` (por defecto `SYNTHETIC`: el sistema nunca presume que un dato es real). Todas las consultas del antibiograma, la tendencia, el WISCA y el mapa aceptan `origin` para calcular solo con datos reales, y cada fila del antibiograma informa `realDataPercentage`. El seed completo es `SYNTHETIC`.
 
+### Interoperabilidad (HL7 FHIR, LOINC y SNOMED CT)
+
+Un hospital trabaja con varios sistemas: el equipo automatizado, uno o más sistemas de laboratorio (LIS) y el sistema hospitalario (HIS). Para que Atlas RAM pueda conversar con ellos, cada aislamiento se exporta en **HL7 FHIR R4** (`GET /fhir/isolates/{id}`, `application/fhir+json`): un `Bundle` con el informe (`DiagnosticReport`), la muestra (`Specimen`), el microorganismo identificado y una `Observation` por antibiótico.
+
+| Dato | Estándar | Ejemplo |
+|---|---|---|
+| Microorganismo | SNOMED CT | *Klebsiella pneumoniae* → `56415008` |
+| Prueba por CIM | LOINC | Meropenem por CIM → `6652-2` |
+| Prueba por disco | LOINC | Amikacina por disco → `13-3` |
+| Valor | UCUM | `>= 16 ug/mL`, `19 mm` (el comparador de la CIM se conserva) |
+| Interpretación | HL7 v3 ObservationInterpretation | `S`, `I`, `R` |
+
+Los 21 antibióticos y 8 microorganismos del catálogo tienen sus códigos, verificados uno por uno contra loinc.org y SNOMED CT International (`fhir/Terminology.java`). Un código que no esté verificado no se inventa: se envía solo el texto. La exportación no incluye ningún dato del paciente.
+
 ### Endpoints principales
 
 Todos bajo `/api/v1`. La documentación completa está en `postman_collection.json`.
@@ -491,6 +505,7 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/antibiogram/referral?districtId=` | público: antibiograma de los hospitales donde se atienden los pacientes del distrito (los 3 que más reciben) |
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
+| `GET` | `/fhir/isolates/{id}` | técnico, epidemiólogo o administrador (de su establecimiento): el aislamiento y su antibiograma en HL7 FHIR R4 |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
 | `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |

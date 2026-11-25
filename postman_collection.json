@@ -3775,6 +3775,49 @@
           ]
         }
       ]
+    },
+    {
+      "name": "15. Interoperabilidad (HL7 FHIR)",
+      "description": "Aislamiento y antibiograma en FHIR R4 con LOINC y SNOMED CT.",
+      "item": [
+        {
+          "name": "Aislamiento en FHIR R4",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/fhir+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fhir/isolates/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fhir",
+                "isolates",
+                "1"
+              ]
+            },
+            "description": "Bundle con DiagnosticReport, Specimen, microorganismo (SNOMED CT) y una Observation por antibiótico (LOINC, valor UCUM, interpretación S/I/R). Sin datos del paciente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es un Bundle FHIR\", () => pm.expect(pm.response.json().resourceType).to.eql(\"Bundle\"));",
+                  "pm.test(\"Sin recurso Patient\", () => pm.expect(pm.response.text()).to.not.include(\"\\\"Patient\\\"\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
