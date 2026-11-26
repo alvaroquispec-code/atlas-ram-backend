@@ -19,7 +19,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import pe.edu.utec.atlasrambackend.config.FacilityAccessEvaluator;
 import pe.edu.utec.atlasrambackend.dto.AddResultsDTO;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
+import pe.edu.utec.atlasrambackend.dto.InterpretationPreviewDTO;
 import pe.edu.utec.atlasrambackend.dto.IsolateResponseDTO;
+import pe.edu.utec.atlasrambackend.model.Interpretation;
 import pe.edu.utec.atlasrambackend.dto.SusceptibilityResultResponseDTO;
 import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.service.IsolateService;
@@ -82,6 +84,19 @@ public class IsolateController {
         IsolateResponseDTO created = isolateService.create(dto);
         URI location = uriBuilder.path("/isolates/{id}").buildAndExpand(created.id()).toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    /** Cómo se interpretaría un resultado (S, I o R) antes de guardarlo; no guarda nada. */
+    @GetMapping("/interpretation-preview")
+    public ResponseEntity<InterpretationPreviewDTO> previewInterpretation(
+            @RequestParam Long microorganismId,
+            @RequestParam Long antibioticId,
+            @RequestParam(required = false) Specimen specimen,
+            @RequestParam(required = false) String mic,
+            @RequestParam(required = false) Integer diskMm,
+            @RequestParam(required = false) Interpretation reported) {
+        return ResponseEntity.ok(isolateService.previewInterpretation(
+                microorganismId, antibioticId, specimen, mic, diskMm, reported));
     }
 
     /** Antibióticos que llegan después: se agregan al aislamiento, todos o ninguno. */
