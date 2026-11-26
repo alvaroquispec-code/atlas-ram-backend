@@ -25,6 +25,7 @@ import pe.edu.utec.atlasrambackend.repository.BreakpointRepository;
 import pe.edu.utec.atlasrambackend.repository.DistrictRepository;
 import pe.edu.utec.atlasrambackend.repository.IsolateRepository;
 import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
+import pe.edu.utec.atlasrambackend.stats.BetaBinomialPooling;
 import pe.edu.utec.atlasrambackend.stats.CochranArmitage;
 import pe.edu.utec.atlasrambackend.stats.Proportions;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
@@ -292,8 +293,11 @@ public class AntibiogramService {
                 .orElseGet(() -> antibiogramQueries.byDistrict(microorganismId, antibioticId, from, to, origin).stream()
                         .collect(Collectors.toMap(AntibiogramQueries.DistrictRow::districtId, Function.identity())));
         BreakpointSite used = siteBreakpoint.map(Breakpoint::getSite).orElse(null);
+        BetaBinomialPooling.Prior prior = BetaBinomialPooling.fit(rows.values().stream()
+                .map(r -> new BetaBinomialPooling.Group(r.resistant(), r.tested()))
+                .toList());
         return districtRepository.findAll(Sort.by("ubigeo")).stream()
-                .map(district -> toResponse(district, rows.get(district.getId()), used))
+                .map(district -> toResponse(district, rows.get(district.getId()), used, prior))
                 .toList();
     }
 
@@ -324,6 +328,16 @@ public class AntibiogramService {
                         top.stream().map(ReferralFacilityRow::facilityId).toList(), from, to, origin, null), false);
 
         return new ReferralAntibiogramResponseDTO(district.getName(), facilities, entries);
+    }
+
+    /**
+     * Antibiograma acumulado de un establecimiento (para el reporte PROA): todas las combinaciones, también
+     * las que no llegan a 30, marcadas con sufficientData = false.
+     */
+    @Transactional(readOnly = true)
+    public List<AntibiogramResponseDTO> calculateForFacility(Long facilityId, LocalDate from, LocalDate to) {
+        validateRange(from, to);
+        return toEntries(rows(null, null, List.of(facilityId), from, to, null, null), true);
     }
 
     /** Agrupación temporal de la tendencia. */
@@ -421,18 +435,22 @@ public class AntibiogramService {
     }
 
     private DistrictResistanceResponseDTO toResponse(District district, AntibiogramQueries.DistrictRow row,
-                                                     BreakpointSite site) {
+                                                     BreakpointSite site, BetaBinomialPooling.Prior prior) {
         long total = row == null ? 0 : row.tested();
         long resistant = row == null ? 0 : row.resistant();
         boolean sufficient = total >= MIN_RESULTS;
         Proportions.Interval ci = Proportions.wilson(resistant, total);
+        BetaBinomialPooling.Estimate pooled = BetaBinomialPooling.estimate(prior, resistant, total);
         return new DistrictResistanceResponseDTO(district.getId(), district.getUbigeo(), district.getName(),
                 total, resistant,
                 sufficient ? Proportions.percentage(resistant, total) : null,
                 sufficient,
                 sufficient ? ci.low() : null,
                 sufficient ? ci.high() : null,
-                site);
+                site,
+                pooled == null ? null : pooled.percentage(),
+                pooled == null ? null : pooled.low(),
+                pooled == null ? null : pooled.high());
     }
 
     private void validateRange(LocalDate from, LocalDate to) {

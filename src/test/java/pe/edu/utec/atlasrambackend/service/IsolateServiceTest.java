@@ -41,6 +41,8 @@ import static org.mockito.Mockito.when;
 class IsolateServiceTest {
 
     private IsolateRepository isolateRepository;
+    private MicroorganismRepository microorganismRepository;
+    private AntibioticRepository antibioticRepository;
     private InterpretationService interpretationService;
     private IsolateService service;
     private PatientKeyService patientKeys;
@@ -50,8 +52,8 @@ class IsolateServiceTest {
     void setUp() {
         isolateRepository = mock(IsolateRepository.class);
         FacilityRepository facilityRepository = mock(FacilityRepository.class);
-        MicroorganismRepository microorganismRepository = mock(MicroorganismRepository.class);
-        AntibioticRepository antibioticRepository = mock(AntibioticRepository.class);
+        microorganismRepository = mock(MicroorganismRepository.class);
+        antibioticRepository = mock(AntibioticRepository.class);
         interpretationService = mock(InterpretationService.class);
         patientKeys = new PatientKeyService(Base64.getEncoder().encodeToString(new byte[32]));
         service = new IsolateService(isolateRepository, facilityRepository, mock(DistrictRepository.class),
@@ -205,5 +207,18 @@ class IsolateServiceTest {
         when(interpretationService.hasBreakpoint(any(), any(), any())).thenReturn(false);
         var preview = service.previewInterpretation(2L, 11L, Specimen.URINE, "16", null, null);
         assertThat(preview.message()).startsWith("No hay punto de corte");
+    }
+
+    @Test
+    void laVistaPreviaMarcaLaResistenciaIntrinseca() {
+        Microorganism ecoli = new Microorganism();
+        ecoli.setCode("eco");
+        Antibiotic vancomicina = new Antibiotic();
+        vancomicina.setCode("VAN");
+        when(microorganismRepository.findById(1L)).thenReturn(Optional.of(ecoli));
+        when(antibioticRepository.findById(18L)).thenReturn(Optional.of(vancomicina));
+        var preview = service.previewInterpretation(1L, 18L, Specimen.URINE, "2", null, null);
+        assertThat(preview.interpretation()).isEqualTo(Interpretation.RESISTANT);
+        assertThat(preview.message()).contains("intrínseca");
     }
 }

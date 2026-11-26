@@ -1,5 +1,9 @@
 package pe.edu.utec.atlasrambackend.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.AuthenticationException;
+import pe.edu.utec.atlasrambackend.config.LoginAttemptLimiter;
+import pe.edu.utec.atlasrambackend.exception.InvalidCredentialsException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,11 +43,14 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final FacilityService facilityService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
 
     public AuthController(AuthService authService,
                           UserRepository userRepository,
                           UserMapper userMapper,
-                          FacilityService facilityService) {
+                          FacilityService facilityService,
+                          LoginAttemptLimiter loginAttemptLimiter) {
+        this.loginAttemptLimiter = loginAttemptLimiter;
         this.authService = authService;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
@@ -58,9 +65,19 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(dto, asAdmin));
     }
 
+    /** Con límite de intentos fallidos por correo y por IP (LoginAttemptLimiter): 429 al superarlo. */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
-        return ResponseEntity.ok(authService.login(dto));
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto, HttpServletRequest request) {
+        String ip = LoginAttemptLimiter.clientIp(request);
+        loginAttemptLimiter.checkAllowed(dto.email(), ip);
+        try {
+            AuthResponseDTO response = authService.login(dto);
+            loginAttemptLimiter.recordSuccess(dto.email());
+            return ResponseEntity.ok(response);
+        } catch (AuthenticationException | InvalidCredentialsException e) {
+            loginAttemptLimiter.recordFailure(dto.email(), ip);
+            throw e;
+        }
     }
 
     @PostMapping("/refresh")

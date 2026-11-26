@@ -14,6 +14,7 @@ import pe.edu.utec.atlasrambackend.ingest.PatientKeyService;
 import pe.edu.utec.atlasrambackend.model.Facility;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateResultDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
+import pe.edu.utec.atlasrambackend.interpretation.IntrinsicResistance;
 import pe.edu.utec.atlasrambackend.interpretation.MicParser;
 import pe.edu.utec.atlasrambackend.interpretation.ParsedMic;
 import pe.edu.utec.atlasrambackend.model.Antibiotic;
@@ -166,6 +167,10 @@ public class IsolateService {
                 .orElseThrow(() -> new ResourceNotFoundException("Microorganismo", microorganismId));
         Antibiotic antibiotic = antibioticRepository.findById(antibioticId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antibiótico", antibioticId));
+        if (IntrinsicResistance.isIntrinsic(microorganism.getCode(), antibiotic.getCode())) {
+            return new InterpretationPreviewDTO(Interpretation.RESISTANT, null,
+                    "resistencia intrínseca (CLSI M100, apéndice B): no se prueba ni se informa");
+        }
         ParsedMic parsed;
         try {
             parsed = MicParser.parse(mic).orElse(null);

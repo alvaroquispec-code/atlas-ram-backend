@@ -118,6 +118,12 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Hospitales de referencia.** Un distrito pequeño, por ejemplo sin hospital propio, rara vez reúne 30 resultados por combinación. En vez de mostrar un porcentaje poco confiable, `GET /antibiogram/referral` identifica los tres hospitales donde más se atienden los pacientes de ese distrito y devuelve el antibiograma de esos hospitales.
 
+**Estimación con muestras pequeñas.** El mapa por distrito agrega, junto al porcentaje de siempre, una estimación con *pooling* parcial (Bayes empírico beta-binomial): la media y la dispersión de la red se estiman con todos los distritos (método de momentos de Kleinman) y cada distrito recibe la media posterior con su intervalo de credibilidad al 95 %. Con pocos aislamientos la estimación se acerca a la media de la red; con muchos respeta el dato local. Es un dato adicional: no reemplaza la regla de 30 de CLSI M39.
+
+**Resistencia intrínseca.** La vista previa de la interpretación reconoce los pares que CLSI M100 (apéndice B) declara de resistencia natural, por ejemplo *E. coli* frente a vancomicina o *P. aeruginosa* frente a ceftriaxona, y avisa que no se prueban ni se informan.
+
+**Reporte PROA en PDF.** `GET /reports/proa?facilityId=&from=&to=` genera el reporte del establecimiento para el Comité de Optimización de Antimicrobianos (NTS 184-MINSA/DIGEMID-2022): antibiograma acumulado CLSI M39 con intervalos de Wilson, resaltado de sensibilidades menores de 80 % y alertas de brote activas. Solo contiene agregados.
+
 **Búsqueda de aislamientos.** El listado acepta filtros opcionales y combinables (establecimiento, microorganismo y tipo de muestra), construidos con JPA Specifications, además de paginación y orden.
 
 **Alertas de brote.** Tras cada carga, el sistema compara las últimas 4 semanas de cada establecimiento con su propia línea base de 12 meses mediante una prueba binomial exacta, agrupa la señal por clase de antibiótico y mantiene una sola alerta activa por combinación; si la carga que la originó se revierte, la alerta se retira con el motivo.
@@ -367,6 +373,8 @@ Manejar los errores de forma global garantiza respuestas consistentes para el cl
 - **CSRF:** la protección se desactiva de forma deliberada porque la API es sin estado y no usa cookies de sesión.
 - **CORS:** configurado en Spring Security para controlar qué orígenes pueden llamar a la API desde un navegador.
 - **Validación de entrada:** Bean Validation en todos los DTOs de entrada.
+- **Fuerza bruta en el inicio de sesión (OWASP API2/API4):** límite de intentos **fallidos** en una ventana de 15 minutos, por correo (5) y por IP (30), con respuesta `429` y `Retry-After`. Un inicio de sesión correcto nunca se bloquea por esto. Se apaga con `RATE_LIMIT_ENABLED=false`.
+- **Registro de auditoría:** la tabla `audit_log` guarda quién hizo cada escritura y cada lectura de datos individuales (aislamientos, FHIR, usuarios), con la ruta sin parámetros, el código de respuesta y la IP. Nunca datos del paciente. `GET /audit-log` (solo ADMIN).
 
 **Limitación conocida:** los tokens de renovación no se persisten, así que no pueden revocarse antes de expirar (ver issue #4).
 
@@ -468,6 +476,7 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 | `PATIENT_KEY_SECRET` | secreto en base64 (mínimo 32 bytes) para seudonimizar el identificador de paciente con HMAC-SHA256 |
 | `JPA_DDL_AUTO` | modo de Hibernate sobre el esquema; por defecto `validate` (el esquema lo maneja Flyway) |
 | `MAIL_ENABLED` | activa el envío real de correos |
+| `RATE_LIMIT_ENABLED` | límite de intentos fallidos de inicio de sesión (por defecto `true`) |
 | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` | servidor SMTP |
 
 ### Formato del CSV de carga

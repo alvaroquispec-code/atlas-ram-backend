@@ -49,6 +49,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Credenciales inválidas", request);
     }
 
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ErrorResponseDTO> handleTooManyAttempts(TooManyAttemptsException ex,
+                                                                  HttpServletRequest request) {
+        ErrorResponseDTO body = ErrorResponseDTO.of(HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(), ex.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(body);
+    }
+
     @ExceptionHandler({BusinessRuleException.class, BreakpointNotFoundException.class})
     public ResponseEntity<ErrorResponseDTO> handleBusinessRule(RuntimeException ex,
                                                                HttpServletRequest request) {

@@ -105,6 +105,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/logistics/**")
                         .hasAnyRole("PHARMACIST", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers("/logistics/**").hasAnyRole("PHARMACIST", "ADMIN")
+                        .requestMatchers("/audit-log/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/reports/**")
+                        .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,
