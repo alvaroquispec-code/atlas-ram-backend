@@ -534,7 +534,8 @@ Todos bajo `/api/v1`. La documentación completa está en `postman_collection.js
 | `GET` | `/auth/me/facilities` | autenticado: establecimientos donde el usuario puede registrar |
 | `GET` | `/isolates?facilityId&microorganismId&specimen&page&size&sort` | autenticado (filtros opcionales y combinables) |
 | `GET` | `/fhir/isolates/{id}` | técnico, epidemiólogo o administrador (de su establecimiento): el aislamiento y su antibiograma en HL7 FHIR R4 |
-| `POST` | `/isolates` | técnico o administrador (de su establecimiento): registra un paciente con su antibiograma en una sola transacción (`results`: antibiótico, CIM como texto `"<=0.25"`, halo o interpretación) |
+| `POST` | `/isolates` | técnico o administrador (de su establecimiento): registra un paciente con su antibiograma en una sola transacción (`results`: antibiótico, CIM como texto `"<=0.25"`, halo o interpretación). `patientId` opcional (solo se guarda su seudónimo HMAC) o `samePatientAsIsolateId` para otro aislamiento del mismo paciente |
+| `POST` | `/isolates/{id}/results` | técnico o administrador (de su establecimiento): agrega antibióticos que llegan después, todos o ninguno; rechaza los que el aislamiento ya tiene |
 | `POST` | `/uploads` | técnico o administrador |
 | `GET` | `/uploads/{id}` | autenticado |
 | `GET` | `/logistics/facilities/{id}/stock` | farmacéutico (su establecimiento), epidemiólogo o administrador |

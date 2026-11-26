@@ -20,5 +20,8 @@ public record IsolateResponseDTO(
         String labIsolateId,
         boolean patientIdentified,
         DataOrigin dataOrigin,
-        Ward ward
+        Ward ward,
+        /** Para registrar otro aislamiento del mismo paciente con el formulario ya lleno. */
+        Long facilityId,
+        Long microorganismId
 ) {}

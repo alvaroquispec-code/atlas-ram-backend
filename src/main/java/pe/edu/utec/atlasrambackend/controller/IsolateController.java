@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 import pe.edu.utec.atlasrambackend.config.FacilityAccessEvaluator;
+import pe.edu.utec.atlasrambackend.dto.AddResultsDTO;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
 import pe.edu.utec.atlasrambackend.dto.IsolateResponseDTO;
 import pe.edu.utec.atlasrambackend.dto.SusceptibilityResultResponseDTO;
@@ -81,6 +82,13 @@ public class IsolateController {
         IsolateResponseDTO created = isolateService.create(dto);
         URI location = uriBuilder.path("/isolates/{id}").buildAndExpand(created.id()).toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    /** Antibióticos que llegan después: se agregan al aislamiento, todos o ninguno. */
+    @PostMapping("/{id}/results")
+    @PreAuthorize("@facilityAccess.canAccessIsolate(authentication, #id)")
+    public ResponseEntity<IsolateResponseDTO> addResults(@PathVariable Long id, @Valid @RequestBody AddResultsDTO dto) {
+        return ResponseEntity.ok(isolateService.addResults(id, dto));
     }
 
     @DeleteMapping("/{id}")

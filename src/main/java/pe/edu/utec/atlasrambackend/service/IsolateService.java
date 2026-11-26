@@ -4,7 +4,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.utec.atlasrambackend.dto.AddResultsDTO;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
+import pe.edu.utec.atlasrambackend.ingest.PatientKeyService;
+import pe.edu.utec.atlasrambackend.model.Facility;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateResultDTO;
 import pe.edu.utec.atlasrambackend.exception.BusinessRuleException;
 import pe.edu.utec.atlasrambackend.interpretation.MicParser;
@@ -25,6 +28,7 @@ import pe.edu.utec.atlasrambackend.repository.MicroorganismRepository;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
 
@@ -38,6 +42,7 @@ public class IsolateService {
     private final IsolateMapper isolateMapper;
     private final AntibioticRepository antibioticRepository;
     private final InterpretationService interpretationService;
+    private final PatientKeyService patientKeyService;
 
     public IsolateService(IsolateRepository isolateRepository,
                           FacilityRepository facilityRepository,
@@ -45,7 +50,9 @@ public class IsolateService {
                           MicroorganismRepository microorganismRepository,
                           IsolateMapper isolateMapper,
                           AntibioticRepository antibioticRepository,
-                          InterpretationService interpretationService) {
+                          InterpretationService interpretationService,
+                          PatientKeyService patientKeyService) {
+        this.patientKeyService = patientKeyService;
         this.antibioticRepository = antibioticRepository;
         this.interpretationService = interpretationService;
         this.isolateRepository = isolateRepository;
@@ -96,15 +103,52 @@ public class IsolateService {
             isolate.setDistrict(districtRepository.findById(dto.districtId())
                     .orElseThrow(() -> new ResourceNotFoundException("Distrito", dto.districtId())));
         }
+        isolate.setPatientKey(patientKey(dto, isolate.getFacility()));
+        addResults(isolate, dto.results());
+        // Una sola transacción: si algún resultado falla, no se guarda nada.
+        return isolateMapper.toResponse(isolateRepository.save(isolate));
+    }
+
+    /**
+     * Seudónimo del paciente: del documento si se escribió (HMAC, el documento no se guarda) o, si no, el del
+     * aislamiento indicado como "mismo paciente". El seudónimo depende del establecimiento, así que ese aislamiento
+     * tiene que ser del mismo establecimiento.
+     */
+    private String patientKey(CreateIsolateDTO dto, Facility facility) {
+        if (dto.patientId() != null && !dto.patientId().isBlank()) {
+            return patientKeyService.keyFor(facility.getCode(), dto.patientId());
+        }
+        if (dto.samePatientAsIsolateId() == null) {
+            return null;
+        }
+        Isolate previous = isolateRepository.findById(dto.samePatientAsIsolateId())
+                .orElseThrow(() -> new ResourceNotFoundException("Aislamiento", dto.samePatientAsIsolateId()));
+        if (!previous.getFacility().getId().equals(facility.getId())) {
+            throw new BusinessRuleException("El otro aislamiento del paciente debe ser del mismo establecimiento");
+        }
+        return previous.getPatientKey();
+    }
+
+    /** Agrega antibióticos a un aislamiento ya registrado, todos o ninguno. */
+    @Transactional
+    public IsolateResponseDTO addResults(Long isolateId, AddResultsDTO dto) {
+        Isolate isolate = isolateRepository.findById(isolateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Aislamiento", isolateId));
+        addResults(isolate, dto.results());
+        return isolateMapper.toResponse(isolateRepository.save(isolate));
+    }
+
+    private void addResults(Isolate isolate, List<CreateIsolateResultDTO> entries) {
+        // Primero se revisa todo el lote y recién después se agrega: nunca queda un lote a medias.
         Set<Long> seen = new HashSet<>();
-        for (CreateIsolateResultDTO entry : dto.results()) {
+        isolate.getResults().forEach(r -> seen.add(r.getAntibiotic().getId()));
+        for (CreateIsolateResultDTO entry : entries) {
             if (!seen.add(entry.antibioticId())) {
                 throw new BusinessRuleException("Un antibiótico aparece dos veces en el antibiograma");
             }
-            isolate.addResult(toResult(isolate, entry));
         }
-        // Una sola transacción: si algún resultado falla, no se guarda nada.
-        return isolateMapper.toResponse(isolateRepository.save(isolate));
+        List<SusceptibilityResult> results = entries.stream().map(entry -> toResult(isolate, entry)).toList();
+        results.forEach(isolate::addResult);
     }
 
     /** Mismo criterio que la carga CSV: CIM, si no el halo, y si ninguno es concluyente, lo que informó el laboratorio. */

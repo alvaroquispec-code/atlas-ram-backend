@@ -17,7 +17,7 @@ class CreateIsolateDTOTest {
 
     private static CreateIsolateDTO dto(Integer age, String sex, Ward ward) {
         return new CreateIsolateDTO(LocalDate.of(2026, 11, 20), Specimen.BLOOD, age, sex, 1L, null, 1L, null, ward,
-                List.of(new CreateIsolateResultDTO(11L, ">=16", null, null)));
+                List.of(new CreateIsolateResultDTO(11L, ">=16", null, null)), null, null);
     }
 
     @Test
@@ -42,7 +42,7 @@ class CreateIsolateDTOTest {
     @Test
     void sinAntibiogramaNoSeRegistra() {
         var sinResultados = new CreateIsolateDTO(LocalDate.of(2026, 11, 20), Specimen.BLOOD, 47, "F", 1L, null, 1L,
-                null, Ward.ICU, List.of());
+                null, Ward.ICU, List.of(), null, null);
 
         assertThat(validator.validate(sinResultados)).extracting(v -> v.getMessage())
                 .containsExactly("Registre al menos un antibiótico del antibiograma");
