@@ -5,6 +5,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.AddResultsDTO;
+import pe.edu.utec.atlasrambackend.dto.InterpretationPreviewDTO;
+import pe.edu.utec.atlasrambackend.model.Interpretation;
+import pe.edu.utec.atlasrambackend.model.Microorganism;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
 import pe.edu.utec.atlasrambackend.ingest.PatientKeyService;
 import pe.edu.utec.atlasrambackend.model.Facility;
@@ -149,6 +152,29 @@ public class IsolateService {
         }
         List<SusceptibilityResult> results = entries.stream().map(entry -> toResult(isolate, entry)).toList();
         results.forEach(isolate::addResult);
+    }
+
+    /**
+     * Vista previa de la interpretación mientras se llena el antibiograma: usa exactamente la misma lógica que el
+     * registro (CIM, si no el halo, con el punto de corte del sitio de la muestra), pero no guarda nada.
+     */
+    @Transactional(readOnly = true)
+    public InterpretationPreviewDTO previewInterpretation(Long microorganismId, Long antibioticId, Specimen specimen,
+                                                          String mic, Integer diskMm, Interpretation reported) {
+        Microorganism microorganism = microorganismRepository.findById(microorganismId)
+                .orElseThrow(() -> new ResourceNotFoundException("Microorganismo", microorganismId));
+        Antibiotic antibiotic = antibioticRepository.findById(antibioticId)
+                .orElseThrow(() -> new ResourceNotFoundException("Antibiótico", antibioticId));
+        ParsedMic parsed;
+        try {
+            parsed = MicParser.parse(mic).orElse(null);
+        } catch (IllegalArgumentException e) {
+            return new InterpretationPreviewDTO(null, null, e.getMessage());
+        }
+        return interpretationService.resolve(parsed, diskMm, reported, microorganism, antibiotic, specimen)
+                .map(r -> new InterpretationPreviewDTO(r.interpretation(), r.source(), null))
+                .orElseGet(() -> new InterpretationPreviewDTO(null, null,
+                        "Sin punto de corte para este valor: marque la lectura S, I o R del laboratorio"));
     }
 
     /** Mismo criterio que la carga CSV: CIM, si no el halo, y si ninguno es concluyente, lo que informó el laboratorio. */

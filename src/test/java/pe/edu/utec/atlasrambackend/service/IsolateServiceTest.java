@@ -174,4 +174,19 @@ class IsolateServiceTest {
         service.addResults(9176L, new AddResultsDTO(List.of(new CreateIsolateResultDTO(12L, "2", null, null))));
         assertThat(saved.getValue().getResults()).hasSize(2);
     }
+
+    @Test
+    void laVistaPreviaInterpretaSinGuardar() {
+        var preview = service.previewInterpretation(2L, 11L, Specimen.URINE, ">=16", null, null);
+        assertThat(preview.interpretation()).isEqualTo(Interpretation.RESISTANT);
+        assertThat(preview.source()).isEqualTo(InterpretationSource.CALCULATED);
+        verify(isolateRepository, never()).save(any());
+    }
+
+    @Test
+    void laVistaPreviaAvisaSiLaCimNoEsValida() {
+        var preview = service.previewInterpretation(2L, 11L, Specimen.URINE, "abc", null, null);
+        assertThat(preview.interpretation()).isNull();
+        assertThat(preview.message()).isNotBlank();
+    }
 }
