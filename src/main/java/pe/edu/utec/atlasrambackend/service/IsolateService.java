@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.utec.atlasrambackend.dto.AddResultsDTO;
 import pe.edu.utec.atlasrambackend.dto.InterpretationPreviewDTO;
 import pe.edu.utec.atlasrambackend.model.Interpretation;
+import pe.edu.utec.atlasrambackend.model.MicQualifier;
 import pe.edu.utec.atlasrambackend.model.Microorganism;
 import pe.edu.utec.atlasrambackend.dto.CreateIsolateDTO;
 import pe.edu.utec.atlasrambackend.ingest.PatientKeyService;
@@ -174,7 +175,20 @@ public class IsolateService {
         return interpretationService.resolve(parsed, diskMm, reported, microorganism, antibiotic, specimen)
                 .map(r -> new InterpretationPreviewDTO(r.interpretation(), r.source(), null))
                 .orElseGet(() -> new InterpretationPreviewDTO(null, null,
-                        "Sin punto de corte para este valor: marque la lectura S, I o R del laboratorio"));
+                        whyNotInterpreted(parsed, mic, microorganism, antibiotic, specimen)));
+    }
+
+    /** Explica por qué no salió S, I o R: no hay punto de corte, o la CIM con ≤/≥ cae entre dos categorías. */
+    private String whyNotInterpreted(ParsedMic parsed, String mic, Microorganism microorganism, Antibiotic antibiotic,
+                                     Specimen specimen) {
+        if (!interpretationService.hasBreakpoint(microorganism, antibiotic, specimen)) {
+            return "No hay punto de corte CLSI para esta bacteria y antibiótico: marque la lectura S, I o R del laboratorio";
+        }
+        if (parsed != null && parsed.qualifier() != MicQualifier.EQ) {
+            String shown = mic.trim().replace(">=", "≥ ").replace("<=", "≤ ").replace(">", "> ").replace("<", "< ");
+            return "Con «" + shown + "» no se puede decidir entre S, I o R: marque la lectura del laboratorio";
+        }
+        return "Con estos datos no se puede calcular: marque la lectura S, I o R del laboratorio";
     }
 
     /** Mismo criterio que la carga CSV: CIM, si no el halo, y si ninguno es concluyente, lo que informó el laboratorio. */

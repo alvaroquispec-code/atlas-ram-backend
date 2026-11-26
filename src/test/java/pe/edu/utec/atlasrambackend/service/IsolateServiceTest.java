@@ -189,4 +189,21 @@ class IsolateServiceTest {
         assertThat(preview.interpretation()).isNull();
         assertThat(preview.message()).isNotBlank();
     }
+
+    @Test
+    void laVistaPreviaExplicaCuandoLaCimConCalificadorCruzaCategorias() {
+        when(interpretationService.resolve(any(), any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(interpretationService.hasBreakpoint(any(), any(), any())).thenReturn(true);
+        var preview = service.previewInterpretation(2L, 11L, Specimen.URINE, ">=16", null, null);
+        assertThat(preview.interpretation()).isNull();
+        assertThat(preview.message()).contains("≥ 16").contains("no se puede decidir");
+    }
+
+    @Test
+    void laVistaPreviaAvisaSiNoHayPuntoDeCorte() {
+        when(interpretationService.resolve(any(), any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(interpretationService.hasBreakpoint(any(), any(), any())).thenReturn(false);
+        var preview = service.previewInterpretation(2L, 11L, Specimen.URINE, "16", null, null);
+        assertThat(preview.message()).startsWith("No hay punto de corte");
+    }
 }
