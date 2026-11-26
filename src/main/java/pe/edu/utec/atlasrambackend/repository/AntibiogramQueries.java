@@ -211,6 +211,12 @@ public class AntibiogramQueries {
                 AntibiogramQueries::mapRow);
     }
 
+    /** Antibiograma de toda la red para un tipo de muestra (p. ej. hemocultivos), para comparar con datos publicados. */
+    public List<Row> antibiogramBySpecimen(String specimen, LocalDate from, LocalDate to, DataOrigin origin) {
+        return jdbc.query(ANTIBIOGRAM, params(null, null, null, from, to, origin)
+                .addValue("specimen", specimen, java.sql.Types.VARCHAR), AntibiogramQueries::mapRow);
+    }
+
     private static MapSqlParameterSource withWard(MapSqlParameterSource params, Ward ward) {
         return params.addValue("ward", ward == null ? null : ward.name(), java.sql.Types.VARCHAR);
     }

@@ -124,6 +124,8 @@ Una terapia empírica mal elegida retrasa el tratamiento efectivo y selecciona m
 
 **Reporte PROA en PDF.** `GET /reports/proa?facilityId=&from=&to=` genera el reporte del establecimiento para el Comité de Optimización de Antimicrobianos (NTS 184-MINSA/DIGEMID-2022): antibiograma acumulado CLSI M39 con intervalos de Wilson, resaltado de sensibilidades menores de 80 % y alertas de brote activas. Solo contiene agregados.
 
+**Datos reales publicados.** En el Perú no hay datos abiertos a nivel de aislamiento, así que los datos reales disponibles son agregados publicados. La migración V17 carga la Tabla 1 del estudio VIRAPERU (Krapp et al., *Am J Trop Med Hyg* 2023, licencia CC BY: 15 hospitales públicos de 12 regiones, hemocultivos 2017-2019) en tablas propias (`published_source`, `published_result`), separadas de los aislamientos. `GET /antibiogram/published` devuelve cada fila con su intervalo de Wilson y, al lado, la resistencia que calcula Atlas RAM para el mismo par y el mismo tipo de muestra.
+
 **Búsqueda de aislamientos.** El listado acepta filtros opcionales y combinables (establecimiento, microorganismo y tipo de muestra), construidos con JPA Specifications, además de paginación y orden.
 
 **Alertas de brote.** Tras cada carga, el sistema compara las últimas 4 semanas de cada establecimiento con su propia línea base de 12 meses mediante una prueba binomial exacta, agrupa la señal por clase de antibiótico y mantiene una sola alerta activa por combinación; si la carga que la originó se revierte, la alerta se retira con el motivo.
