@@ -84,6 +84,13 @@ public class InterpretationService {
                 .map(r -> new Resolution(r, InterpretationSource.LAB_REPORTED, null, null));
     }
 
+    /** Si existe un punto de corte vigente para esta bacteria y antibiótico en ese sitio (sirve para explicar por qué no se interpretó). */
+    public boolean hasBreakpoint(Microorganism microorganism, Antibiotic antibiotic, Specimen specimen) {
+        return select(breakpointRepository.findAllByMicroorganismIdAndAntibioticIdAndStandardAndVersion(
+                microorganism.getId(), antibiotic.getId(), standard, version),
+                BreakpointSite.forSpecimen(specimen)).isPresent();
+    }
+
     /**
      * El punto de corte del sitio pedido; si no hay uno específico, el general (ANY). Nunca se usa el de
      * meningitis para otra infección ni al revés: si solo existe el del otro sitio, no hay punto de corte.
