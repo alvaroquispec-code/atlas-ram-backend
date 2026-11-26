@@ -31,7 +31,9 @@ public class IsolateMapper {
                 i.getLabIsolateId(),
                 i.getPatientKey() != null,
                 i.getDataOrigin(),
-                i.getWard()
+                i.getWard(),
+                i.getFacility().getId(),
+                m.getId()
         );
     }
 }

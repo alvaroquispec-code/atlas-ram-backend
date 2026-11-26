@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import pe.edu.utec.atlasrambackend.model.DataOrigin;
 import pe.edu.utec.atlasrambackend.model.Specimen;
 import pe.edu.utec.atlasrambackend.model.Ward;
@@ -43,5 +44,13 @@ public record CreateIsolateDTO(
          * no se puede interpretar, no queda un aislamiento sin antibiograma.
          */
         @NotEmpty(message = "Registre al menos un antibiótico del antibiograma")
-        List<@Valid CreateIsolateResultDTO> results
+        List<@Valid CreateIsolateResultDTO> results,
+        /**
+         * Historia clínica o DNI (opcional). Nunca se guarda: solo su seudónimo HMAC, igual que en las cargas CSV.
+         * Con él, la regla del primer aislamiento por paciente (CLSI M39) también funciona en el registro manual.
+         */
+        @Size(max = 50, message = "El identificador del paciente no puede superar 50 caracteres")
+        String patientId,
+        /** Otro aislamiento del mismo paciente (opcional): se reutiliza su seudónimo sin volver a pedir el documento. */
+        Long samePatientAsIsolateId
 ) {}
