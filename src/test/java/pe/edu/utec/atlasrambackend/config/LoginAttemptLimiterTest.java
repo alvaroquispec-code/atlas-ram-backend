@@ -92,4 +92,31 @@ class LoginAttemptLimiterTest {
         direct.setRemoteAddr("200.48.1.21");
         assertThat(LoginAttemptLimiter.clientIp(direct)).isEqualTo("200.48.1.21");
     }
+
+    @Test
+    void detrasDeCloudFrontUsaLaIpDelUsuarioSoloConElSecreto() {
+        LoginAttemptLimiter.setCloudFrontSecret("s3cr3to");
+        try {
+            MockHttpServletRequest viaCloudFront = new MockHttpServletRequest();
+            viaCloudFront.setRemoteAddr("127.0.0.1");
+            viaCloudFront.addHeader("X-Forwarded-For", "130.176.1.1");
+            viaCloudFront.addHeader("X-Origin-Verify", "s3cr3to");
+            viaCloudFront.addHeader("CloudFront-Viewer-Address", "200.48.1.30:51234");
+            assertThat(LoginAttemptLimiter.clientIp(viaCloudFront)).isEqualTo("200.48.1.30");
+
+            MockHttpServletRequest ipv6 = new MockHttpServletRequest();
+            ipv6.addHeader("X-Origin-Verify", "s3cr3to");
+            ipv6.addHeader("CloudFront-Viewer-Address", "2001:db8::1:51234");
+            assertThat(LoginAttemptLimiter.clientIp(ipv6)).isEqualTo("2001:db8::1");
+
+            MockHttpServletRequest forged = new MockHttpServletRequest();
+            forged.setRemoteAddr("127.0.0.1");
+            forged.addHeader("X-Forwarded-For", "200.48.1.40");
+            forged.addHeader("X-Origin-Verify", "otro");
+            forged.addHeader("CloudFront-Viewer-Address", "1.2.3.4:1");
+            assertThat(LoginAttemptLimiter.clientIp(forged)).isEqualTo("200.48.1.40");
+        } finally {
+            LoginAttemptLimiter.setCloudFrontSecret("");
+        }
+    }
 }

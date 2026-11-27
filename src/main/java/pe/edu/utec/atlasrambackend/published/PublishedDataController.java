@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.published;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,6 +19,7 @@ public class PublishedDataController {
         this.publishedDataService = publishedDataService;
     }
 
+    @Cacheable("published")
     @GetMapping("/antibiogram/published")
     public ResponseEntity<List<PublishedAntibiogramDTO>> findAll(@RequestParam(required = false) DataOrigin origin) {
         return ResponseEntity.ok(publishedDataService.findAll(origin));

@@ -2,8 +2,10 @@ package pe.edu.utec.atlasrambackend.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import pe.edu.utec.atlasrambackend.config.CacheConfig;
 
 /**
  * Procesa una carga en segundo plano. No es transaccional a propósito: coordina tres transacciones
@@ -23,10 +25,17 @@ public class UploadService {
 
     private final UploadImporter importer;
     private final UploadStatusWriter statusWriter;
+    private CacheConfig.AggregateCache aggregateCache;
 
     public UploadService(UploadImporter importer, UploadStatusWriter statusWriter) {
         this.importer = importer;
         this.statusWriter = statusWriter;
+    }
+
+    /** Al terminar una carga se vacía la caché de agregados (CacheConfig). Opcional: en pruebas no hay. */
+    @Autowired(required = false)
+    void setAggregateCache(CacheConfig.AggregateCache aggregateCache) {
+        this.aggregateCache = aggregateCache;
     }
 
     @Async("uploadExecutor")
@@ -34,6 +43,9 @@ public class UploadService {
         statusWriter.markProcessing(uploadId);
         try {
             importer.importRows(uploadId, parsed);
+            if (aggregateCache != null) {
+                aggregateCache.clearAll();
+            }
         } catch (Exception e) {
             log.error("Carga {} falló: {}", uploadId, e.getMessage(), e);
             statusWriter.markFailed(uploadId, failureMessage(e));

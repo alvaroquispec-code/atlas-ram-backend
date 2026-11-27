@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import pe.edu.utec.atlasrambackend.exception.TooManyAttemptsException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,12 +43,25 @@ public class LoginAttemptLimiter {
     private final Clock clock;
     private final Map<String, Deque<Instant>> failures = new ConcurrentHashMap<>();
 
+    /**
+     * Secreto que CloudFront agrega a cada petición (cabecera X-Origin-Verify) cuando la API se sirve detrás
+     * de CloudFront. Solo si llega ese secreto se confía en CloudFront-Viewer-Address: así nadie que llame
+     * directo al servidor puede inventarse una IP. Vacío (por defecto): no se usa CloudFront.
+     */
+    private static volatile String cloudFrontSecret = "";
+
     @Autowired
     public LoginAttemptLimiter(@Value("${app.rate-limit.enabled:true}") boolean enabled,
                                @Value("${app.rate-limit.max-failures-per-email:5}") int maxPerEmail,
                                @Value("${app.rate-limit.max-failures-per-ip:30}") int maxPerIp,
-                               @Value("${app.rate-limit.window-minutes:15}") int windowMinutes) {
+                               @Value("${app.rate-limit.window-minutes:15}") int windowMinutes,
+                               @Value("${app.cloudfront.origin-secret:}") String cloudFrontOriginSecret) {
         this(enabled, maxPerEmail, maxPerIp, Duration.ofMinutes(windowMinutes), Clock.systemUTC());
+        setCloudFrontSecret(cloudFrontOriginSecret);
+    }
+
+    static void setCloudFrontSecret(String secret) {
+        cloudFrontSecret = secret == null ? "" : secret.trim();
     }
 
     LoginAttemptLimiter(boolean enabled, int maxPerEmail, int maxPerIp, Duration window, Clock clock) {
@@ -97,12 +112,35 @@ public class LoginAttemptLimiter {
      * cliente).
      */
     public static String clientIp(HttpServletRequest request) {
+        String viewer = cloudFrontViewerIp(request);
+        if (viewer != null) {
+            return viewer;
+        }
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             String[] parts = forwarded.split(",");
             return parts[parts.length - 1].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    /**
+     * Detrás de CloudFront, Caddy ve la IP del borde de CloudFront, no la del usuario. CloudFront manda la
+     * del usuario en CloudFront-Viewer-Address ("ip:puerto"). Solo se usa si la petición trae el secreto.
+     */
+    static String cloudFrontViewerIp(HttpServletRequest request) {
+        String secret = cloudFrontSecret;
+        String received = request.getHeader("X-Origin-Verify");
+        if (secret.isEmpty() || received == null || !MessageDigest.isEqual(
+                secret.getBytes(StandardCharsets.UTF_8), received.getBytes(StandardCharsets.UTF_8))) {
+            return null;
+        }
+        String viewer = request.getHeader("CloudFront-Viewer-Address");
+        if (viewer == null || viewer.isBlank()) {
+            return null;
+        }
+        int colon = viewer.lastIndexOf(':');
+        return (colon > 0 ? viewer.substring(0, colon) : viewer).trim();
     }
 
     private void add(String key, Instant now) {
