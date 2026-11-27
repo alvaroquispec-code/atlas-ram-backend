@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.controller;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +40,7 @@ public class AntibiogramController {
      * Con includeInsufficient=true también devuelve las combinaciones con menos de 30 aislamientos.
      * origin (opcional, en todas las consultas): REAL o SYNTHETIC; sin él se usa toda procedencia.
      */
+    @Cacheable("antibiogram")
     @GetMapping
     public ResponseEntity<List<AntibiogramResponseDTO>> calculate(
             @RequestParam(required = false) Long microorganismId,
@@ -56,6 +58,7 @@ public class AntibiogramController {
      * Antibiograma de los hospitales donde se atienden los pacientes de un distrito.
      * Ejemplo: /antibiogram/referral?districtId=4&from=2024-09-01&to=2026-08-31
      */
+    @Cacheable("referral")
     @GetMapping("/referral")
     public ResponseEntity<ReferralAntibiogramResponseDTO> calculateReferral(
             @RequestParam Long districtId,
@@ -70,6 +73,7 @@ public class AntibiogramController {
      * Ejemplo: /antibiogram/trend?microorganismId=2&antibioticId=11&facilityId=6&from=2024-09-01&to=2026-08-31
      * interval: MONTH (por defecto) o QUARTER.
      */
+    @Cacheable("trend")
     @GetMapping("/trend")
     public ResponseEntity<TrendResponseDTO> trend(
             @RequestParam Long microorganismId,
@@ -90,6 +94,7 @@ public class AntibiogramController {
      * Ejemplo: /antibiogram/wisca?syndrome=BACTEREMIA&from=2025-09-01&to=2026-08-31&regimens=MEM,TZP%2BAMK
      * Sin regimens se comparan los candidatos habituales del síndrome. target: cobertura objetivo (90 %).
      */
+    @Cacheable("wisca")
     @GetMapping("/wisca")
     public ResponseEntity<WiscaResponseDTO> wisca(
             @RequestParam Syndrome syndrome,
@@ -109,6 +114,7 @@ public class AntibiogramController {
      * Resistencia por distrito para el mapa.
      * Ejemplo: /antibiogram/by-district?microorganismId=1&antibioticId=6&from=2025-01-01&to=2025-12-31
      */
+    @Cacheable("byDistrict")
     @GetMapping("/by-district")
     public ResponseEntity<List<DistrictResistanceResponseDTO>> calculateByDistrict(
             @RequestParam Long microorganismId,
