@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.controller;
 
+import pe.edu.utec.atlasrambackend.access.AccessRequestService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.AuthenticationException;
 import pe.edu.utec.atlasrambackend.config.LoginAttemptLimiter;
@@ -44,13 +45,16 @@ public class AuthController {
     private final UserMapper userMapper;
     private final FacilityService facilityService;
     private final LoginAttemptLimiter loginAttemptLimiter;
+    private final AccessRequestService accessRequestService;
 
     public AuthController(AuthService authService,
                           UserRepository userRepository,
                           UserMapper userMapper,
                           FacilityService facilityService,
-                          LoginAttemptLimiter loginAttemptLimiter) {
+                          LoginAttemptLimiter loginAttemptLimiter,
+                          AccessRequestService accessRequestService) {
         this.loginAttemptLimiter = loginAttemptLimiter;
+        this.accessRequestService = accessRequestService;
         this.authService = authService;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
@@ -62,7 +66,15 @@ public class AuthController {
                                                     Authentication authentication) {
         boolean asAdmin = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> ADMIN_AUTHORITY.equals(authority.getAuthority()));
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(dto, asAdmin));
+        boolean professional = dto.professional() != null && !asAdmin;
+        if (professional) {
+            accessRequestService.validate(dto.professional());
+        }
+        AuthResponseDTO response = authService.register(dto, asAdmin);
+        if (professional) {
+            accessRequestService.create(dto.email(), dto.professional());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /** Con límite de intentos fallidos por correo y por IP (LoginAttemptLimiter): 429 al superarlo. */

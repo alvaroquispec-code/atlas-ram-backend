@@ -1,5 +1,6 @@
 package pe.edu.utec.atlasrambackend.service;
 
+import pe.edu.utec.atlasrambackend.access.DataPolicy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,9 @@ public class AuthService {
 
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO dto, boolean requestedByAdmin) {
+        if (!requestedByAdmin && !Boolean.TRUE.equals(dto.acceptedDataPolicy())) {
+            throw new BusinessRuleException("Para crear la cuenta debes aceptar la política de tratamiento de datos personales");
+        }
         if (userRepository.existsByEmail(dto.email())) {
             throw new DuplicateResourceException("un usuario", "el correo", dto.email());
         }
@@ -49,6 +53,10 @@ public class AuthService {
         user.setFullName(dto.fullName());
         user.setRole(requestedByAdmin && dto.role() != null ? dto.role() : Role.PUBLIC_VIEWER);
         user.setActive(true);
+        if (Boolean.TRUE.equals(dto.acceptedDataPolicy())) {
+            user.setDataPolicyVersion(DataPolicy.VERSION);
+            user.setDataPolicyAcceptedAt(java.time.Instant.now());
+        }
         return tokensFor(userRepository.save(user));
     }
 

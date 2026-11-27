@@ -106,6 +106,8 @@ public class SecurityConfig {
                         .hasAnyRole("PHARMACIST", "EPIDEMIOLOGIST", "ADMIN")
                         .requestMatchers("/logistics/**").hasAnyRole("PHARMACIST", "ADMIN")
                         .requestMatchers("/audit-log/**").hasRole("ADMIN")
+                        .requestMatchers("/access-requests/mine").authenticated()
+                        .requestMatchers("/access-requests/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/reports/**")
                         .hasAnyRole("LAB_TECHNICIAN", "EPIDEMIOLOGIST", "ADMIN")
                         .anyRequest().authenticated()

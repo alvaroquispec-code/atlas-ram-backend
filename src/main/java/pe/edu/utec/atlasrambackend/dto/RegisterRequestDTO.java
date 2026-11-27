@@ -19,7 +19,14 @@ public record RegisterRequestDTO(
 
         @NotBlank @Size(max = 150) String fullName,
 
-        Role role
+        Role role,
+
+        /** Aceptación de la política de datos personales; obligatoria cuando la persona se registra sola. */
+        Boolean acceptedDataPolicy,
+
+        /** Solo si es profesional de la salud: crea una solicitud de acceso con su colegiatura. */
+        @jakarta.validation.Valid
+        pe.edu.utec.atlasrambackend.access.ProfessionalRequestDTO professional
 ) {}
 
 
