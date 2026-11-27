@@ -61,6 +61,13 @@ public class User {
     @Column(name="token_version", nullable = false)
     private int tokenVersion = 1;
 
+    /** Versión de la política de datos personales que aceptó al registrarse (null en cuentas anteriores). */
+    @Column(name="data_policy_version", length = 20)
+    private String dataPolicyVersion;
+
+    @Column(name="data_policy_accepted_at")
+    private Instant dataPolicyAcceptedAt;
+
     /** Invalida todos los tokens emitidos hasta ahora. */
     public void revokeSessions() {
         tokenVersion++;
