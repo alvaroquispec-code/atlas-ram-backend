@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Solicitudes de acceso profesional. /mine para cualquier usuario; el resto, solo ADMIN (SecurityConfig). */
+/**
+ * Solicitudes de acceso profesional. /mine para cualquier usuario; listar y decidir, el ADMIN o el jefe del
+ * establecimiento (lo comprueba AccessRequestService).
+ */
 @RestController
 @RequestMapping("/access-requests")
 public class AccessRequestController {
@@ -39,8 +42,8 @@ public class AccessRequestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AccessRequestResponseDTO>> pending() {
-        return ResponseEntity.ok(service.pending());
+    public ResponseEntity<List<AccessRequestResponseDTO>> pending(Authentication authentication) {
+        return ResponseEntity.ok(service.pending(authentication.getName()));
     }
 
     @PostMapping("/{id}/approve")

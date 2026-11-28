@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,15 +21,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Límite de peticiones por IP para quien consulta SIN sesión (anti-scraping; OWASP API Security Top 10
- * 2023, API4: consumo de recursos sin restricción).
+ * Límite de peticiones para quien consulta sin sesión (por IP) y para las cuentas públicas (por cuenta)
+ * (anti-scraping; OWASP API Security Top 10 2023, API4: consumo de recursos sin restricción).
+ *
+ * Registrarse es gratis, así que "crear una cuenta y descargar todo" no debe saltarse el límite: las
+ * cuentas con rol PUBLIC_VIEWER cuentan igual que un visitante, pero por cuenta en lugar de por IP.
  *
  * Los agregados públicos (mapa, antibiograma, tendencias) son abiertos a propósito, pero un robot que los
  * descarga en bucle encarece el servidor y la base de datos. Se cuenta por IP en ventanas de un minuto;
  * al pasar el límite se responde 429 con Retry-After.
  *
  * No se cuentan:
- *   - las peticiones con sesión (cabecera Authorization): son usuarios identificados y auditados;
+ *   - las cuentas con un rol clínico o de administración (laboratorio, epidemiología, farmacia, admin):
+ *     son profesionales verificados y su actividad queda auditada;
  *   - las que salen de la propia máquina (127.0.0.1, ::1), como las pruebas automáticas.
  * Detrás de Caddy la IP real se toma de X-Forwarded-For, igual que en LoginAttemptLimiter.
  *
@@ -55,22 +62,37 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !enabled
-                || "OPTIONS".equalsIgnoreCase(request.getMethod())
-                || request.getHeader(HttpHeaders.AUTHORIZATION) != null;
+        return !enabled || "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    /**
+     * Clave del contador: "user:<correo>" para una cuenta pública, "ip:<ip>" sin sesión y null para un
+     * profesional (no se limita). El filtro corre después de la cadena de Spring Security, así que la
+     * autenticación del JWT ya está en el contexto.
+     */
+    static String counterKey(Authentication auth, String ip) {
+        if (auth != null && auth.isAuthenticated() && auth.getName() != null
+                && !"anonymousUser".equals(auth.getName())) {
+            boolean onlyPublic = auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .allMatch(a -> a.equals("ROLE_PUBLIC_VIEWER") || a.equals("PUBLIC_VIEWER"));
+            return onlyPublic ? "user:" + auth.getName().toLowerCase() : null;
+        }
+        return isLoopback(ip) ? null : "ip:" + ip;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String ip = LoginAttemptLimiter.clientIp(request);
-        if (isLoopback(ip)) {
+        String key = counterKey(SecurityContextHolder.getContext().getAuthentication(),
+                LoginAttemptLimiter.clientIp(request));
+        if (key == null) {
             chain.doFilter(request, response);
             return;
         }
         long now = Instant.now().getEpochSecond();
         long minute = now / 60;
-        Window window = windows.compute(ip, (key, current) ->
+        Window window = windows.compute(key, (k, current) ->
                 current == null || current.minute() != minute ? new Window(minute, new AtomicInteger()) : current);
         if (window.count().incrementAndGet() > limitPerMinute) {
             long retryAfter = Math.max(1, (minute + 1) * 60 - now);
@@ -79,7 +101,7 @@ public class PublicApiRateLimitFilter extends OncePerRequestFilter {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
             response.getWriter().write("{\"status\":429,\"error\":\"Too Many Requests\",\"message\":"
-                    + "\"Demasiadas consultas desde tu red. Espera " + retryAfter + " s o inicia sesión.\"}");
+                    + "\"Demasiadas consultas seguidas. Espera " + retryAfter + " s.\"}");
             return;
         }
         if (windows.size() > CLEANUP_THRESHOLD) {

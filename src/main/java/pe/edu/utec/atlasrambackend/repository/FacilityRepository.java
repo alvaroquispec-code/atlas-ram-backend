@@ -25,4 +25,14 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
             order by f.name
             """)
     List<Facility> findAssignedTo(@Param("email") String email);
+
+    @Query("""
+            select f from User u
+            join u.managedFacilities f
+            where u.email = :email
+            order by f.name
+            """)
+    List<Facility> findManagedBy(@Param("email") String email);
+
+    Optional<Facility> findByRenipressCode(String renipressCode);
 }

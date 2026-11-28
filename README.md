@@ -365,6 +365,11 @@ Manejar los errores de forma global garantiza respuestas consistentes para el cl
 - **Cuatro roles.** `ADMIN`, `LAB_TECHNICIAN`, `EPIDEMIOLOGIST` y `PUBLIC_VIEWER`, guardados en la base y en el token. Los métodos sensibles se protegen con `@PreAuthorize`.
 - **Registro con permisos mínimos.** Todo usuario nuevo se crea como `PUBLIC_VIEWER`; solo un administrador puede elevar su rol.
 - **Control por establecimiento.** Un técnico de laboratorio solo puede registrar aislamientos y cargar archivos de los establecimientos que tiene asignados. Lo verifica `@PreAuthorize` con un evaluador propio sobre la relación `user_facility`.
+- **Verificación de correo y aprobación automática.** Al registrarse llega un enlace de un solo uso (se guarda solo su SHA-256; vence en 24 h; máximo uno por minuto). Si el correo verificado es del dominio institucional del establecimiento (p. ej. `@essalud.gob.pe`), la solicitud de acceso profesional se aprueba sola; si no, la aprueba el jefe de ese establecimiento.
+- **Jefes por establecimiento.** Tabla `facility_manager`: cada hospital aprueba a su propio personal. Un jefe solo ve y decide las solicitudes de sus establecimientos y nadie aprueba la suya.
+- **Registro de establecimientos con RUC e IPRESS.** El RUC se valida con el dígito verificador de SUNAT y el sector (público o privado) lo decide el padrón RENIPRESS de SUSALUD, no lo que declara la clínica: una privada que dice ser pública queda como privada. Un hospital público con correo verificado `.gob.pe` y nombre que coincide con RENIPRESS se aprueba solo.
+- **Colegiatura cifrada en la base.** `access_request.registration_number` se guarda con AES-256-GCM (`FieldCipher`, clave `FIELD_ENCRYPTION_KEY` o derivada de `PATIENT_KEY_SECRET`); las filas antiguas en texto se leen igual.
+- **Límite también para cuentas públicas.** Registrarse es gratis, así que una cuenta `PUBLIC_VIEWER` cuenta igual que un visitante anónimo (por cuenta, no por IP): «me registro y descargo todo» no salta el límite.
 - **Secretos fuera del código.** La clave JWT y las credenciales se leen de variables de entorno. El archivo `.env` está excluido del repositorio.
 - **Datos anonimizados por diseño**, como se explicó en el modelo.
 
@@ -484,7 +489,9 @@ docker exec atlasram-db psql -U atlasram -d atlasram -f /tmp/inventario_demo.sql
 | `JPA_DDL_AUTO` | modo de Hibernate sobre el esquema; por defecto `validate` (el esquema lo maneja Flyway) |
 | `MAIL_ENABLED` | activa el envío real de correos |
 | `RATE_LIMIT_ENABLED` | límite de intentos fallidos de inicio de sesión (por defecto `true`) |
-| `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` | servidor SMTP |
+| `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | servidor SMTP (también para el correo de verificación) |
+| `APP_WEB_URL` | dirección de la web para el enlace de verificación |
+| `FIELD_ENCRYPTION_KEY` | clave AES-256 en base64 para cifrar columnas; si falta, se deriva de `PATIENT_KEY_SECRET` |
 
 ### Formato del CSV de carga
 
