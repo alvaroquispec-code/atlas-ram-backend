@@ -53,6 +53,10 @@ public class AuthService {
         user.setFullName(dto.fullName());
         user.setRole(requestedByAdmin && dto.role() != null ? dto.role() : Role.PUBLIC_VIEWER);
         user.setActive(true);
+        if (requestedByAdmin) {
+            // Lo crea un administrador que conoce a la persona: no hace falta el enlace de verificación.
+            user.setEmailVerifiedAt(java.time.Instant.now());
+        }
         if (Boolean.TRUE.equals(dto.acceptedDataPolicy())) {
             user.setDataPolicyVersion(DataPolicy.VERSION);
             user.setDataPolicyAcceptedAt(java.time.Instant.now());

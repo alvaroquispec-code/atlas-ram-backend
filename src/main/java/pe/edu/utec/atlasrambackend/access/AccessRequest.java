@@ -1,6 +1,7 @@
 package pe.edu.utec.atlasrambackend.access;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,6 +18,7 @@ import lombok.Setter;
 import pe.edu.utec.atlasrambackend.model.Facility;
 import pe.edu.utec.atlasrambackend.model.Role;
 import pe.edu.utec.atlasrambackend.model.User;
+import pe.edu.utec.atlasrambackend.security.EncryptedStringConverter;
 
 import java.time.Instant;
 
@@ -48,7 +50,9 @@ public class AccessRequest {
     @Column(name = "professional_body", nullable = false, length = 10)
     private ProfessionalBody professionalBody;
 
-    @Column(name = "registration_number", nullable = false, length = 10)
+    /** Colegiatura, cifrada en la base con AES-256-GCM (V20, FieldCipher). */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "registration_number", nullable = false, length = 200)
     private String registrationNumber;
 
     @Enumerated(EnumType.STRING)

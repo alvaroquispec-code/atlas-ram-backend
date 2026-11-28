@@ -68,6 +68,29 @@ public class User {
     @Column(name="data_policy_accepted_at")
     private Instant dataPolicyAcceptedAt;
 
+    /** Cuándo confirmó su correo con el enlace que le enviamos (V20). Null: aún no lo confirma. */
+    @Column(name="email_verified_at")
+    private Instant emailVerifiedAt;
+
+    /** Establecimientos donde es administrador: aprueba las solicitudes de su personal (V20). */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "facility_manager",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "facility_id")
+    )
+    private Set<Facility> managedFacilities = new HashSet<>();
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    /** Dominio del correo, en minúsculas ("essalud.gob.pe"). */
+    public String emailDomain() {
+        int at = email == null ? -1 : email.lastIndexOf('@');
+        return at < 0 ? "" : email.substring(at + 1).toLowerCase();
+    }
+
     /** Invalida todos los tokens emitidos hasta ahora. */
     public void revokeSessions() {
         tokenVersion++;

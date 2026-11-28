@@ -10,5 +10,6 @@ public record UserResponseDTO(
         String fullName,
         Role role,
         boolean active,
-        Instant createdAt
+        Instant createdAt,
+        boolean emailVerified
 ) {}

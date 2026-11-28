@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.edu.utec.atlasrambackend.model.User;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -24,4 +25,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** Ids de los establecimientos asignados al usuario. */
     @Query("select f.id from User u join u.facilities f where u.email = :email")
     Set<Long> findFacilityIdsByEmail(@Param("email") String email);
+
+    /** Jefes del establecimiento (V20). */
+    @Query("select u from User u join u.managedFacilities f where f.id = :facilityId order by u.fullName")
+    List<User> findManagersOf(@Param("facilityId") Long facilityId);
 }

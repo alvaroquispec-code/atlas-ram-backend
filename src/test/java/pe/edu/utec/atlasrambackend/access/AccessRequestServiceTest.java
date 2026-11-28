@@ -26,6 +26,7 @@ class AccessRequestServiceTest {
 
     private final Facility hnch = new Facility();
     private final User maria = new User();
+    private final User admin = new User();
 
     @BeforeEach
     void setUp() {
@@ -38,6 +39,10 @@ class AccessRequestServiceTest {
         when(facilities.existsById(1L)).thenReturn(true);
         when(facilities.getReferenceById(1L)).thenReturn(hnch);
         when(users.findByEmail("maria@hnch.test")).thenReturn(Optional.of(maria));
+        admin.setId(1L);
+        admin.setEmail("admin@atlasram.test");
+        admin.setRole(Role.ADMIN);
+        when(users.findByEmail("admin@atlasram.test")).thenReturn(Optional.of(admin));
         when(requests.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -83,5 +88,70 @@ class AccessRequestServiceTest {
         assertThat(maria.getFacilities()).contains(hnch);
         assertThat(maria.getTokenVersion()).isEqualTo(version + 1);
         assertThatThrownBy(() -> service.approve(3L, "admin@atlasram.test")).isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void conCorreoInstitucionalVerificadoSeApruebaSolaSinIntervencionManual() {
+        hnch.setEmailDomains("hospitalcayetano.gob.pe");
+        maria.setEmail("maria@hospitalcayetano.gob.pe");
+        maria.setEmailVerifiedAt(java.time.Instant.now());
+        when(users.findByEmail("maria@hospitalcayetano.gob.pe")).thenReturn(Optional.of(maria));
+
+        AccessRequestResponseDTO r = service.create("maria@hospitalcayetano.gob.pe", tecnologa(Role.LAB_TECHNICIAN));
+
+        assertThat(r.status()).isEqualTo(AccessRequestStatus.APPROVED);
+        assertThat(r.note()).startsWith("Aprobación automática");
+        assertThat(maria.getRole()).isEqualTo(Role.LAB_TECHNICIAN);
+    }
+
+    @Test
+    void sinVerificarElCorreoNoHayAprobacionAutomatica() {
+        hnch.setEmailDomains("hospitalcayetano.gob.pe");
+        maria.setEmail("maria@hospitalcayetano.gob.pe");
+        when(users.findByEmail("maria@hospitalcayetano.gob.pe")).thenReturn(Optional.of(maria));
+
+        AccessRequestResponseDTO r = service.create("maria@hospitalcayetano.gob.pe", tecnologa(Role.LAB_TECHNICIAN));
+
+        assertThat(r.status()).isEqualTo(AccessRequestStatus.PENDING);
+        assertThat(r.checks()).contains("Correo aún no verificado");
+    }
+
+    @Test
+    void conCorreoPersonalQuedaParaElJefeDelEstablecimiento() {
+        hnch.setEmailDomains("hospitalcayetano.gob.pe");
+        maria.setEmailVerifiedAt(java.time.Instant.now());
+        AccessRequestResponseDTO r = service.create("maria@hnch.test", tecnologa(Role.LAB_TECHNICIAN));
+        assertThat(r.status()).isEqualTo(AccessRequestStatus.PENDING);
+    }
+
+    @Test
+    void elJefeDeOtroEstablecimientoNoPuedeAprobar() {
+        AccessRequest request = new AccessRequest();
+        request.setId(4L);
+        request.setUser(maria);
+        request.setFacility(hnch);
+        request.setRequestedRole(Role.LAB_TECHNICIAN);
+        request.setProfessionalBody(ProfessionalBody.CTMP);
+        request.setRegistrationNumber("12345");
+        when(requests.findById(4L)).thenReturn(Optional.of(request));
+        Facility otro = new Facility();
+        otro.setId(2L);
+        User jefeOtro = new User();
+        jefeOtro.setId(9L);
+        jefeOtro.setEmail("jefe@otro.test");
+        jefeOtro.setRole(Role.LAB_TECHNICIAN);
+        jefeOtro.getManagedFacilities().add(otro);
+        when(users.findByEmail("jefe@otro.test")).thenReturn(Optional.of(jefeOtro));
+
+        assertThatThrownBy(() -> service.approve(4L, "jefe@otro.test"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        User jefe = new User();
+        jefe.setId(10L);
+        jefe.setEmail("jefe@hnch.test");
+        jefe.setRole(Role.LAB_TECHNICIAN);
+        jefe.getManagedFacilities().add(hnch);
+        when(users.findByEmail("jefe@hnch.test")).thenReturn(Optional.of(jefe));
+        assertThat(service.approve(4L, "jefe@hnch.test").status()).isEqualTo(AccessRequestStatus.APPROVED);
     }
 }

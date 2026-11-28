@@ -1,6 +1,8 @@
 package pe.edu.utec.atlasrambackend.controller;
 
 import pe.edu.utec.atlasrambackend.access.AccessRequestService;
+import pe.edu.utec.atlasrambackend.access.EmailVerificationService;
+import pe.edu.utec.atlasrambackend.repository.FacilityRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.AuthenticationException;
 import pe.edu.utec.atlasrambackend.config.LoginAttemptLimiter;
@@ -46,13 +48,28 @@ public class AuthController {
     private final FacilityService facilityService;
     private final LoginAttemptLimiter loginAttemptLimiter;
     private final AccessRequestService accessRequestService;
+    private final EmailVerificationService emailVerificationService;
+    private final FacilityRepository facilityRepository;
+
+    public record VerifyEmailDTO(String token) {
+    }
+
+    public record VerificationResultDTO(boolean emailVerified, boolean sent, String message) {
+    }
+
+    public record ManagedFacilityDTO(Long id, String name) {
+    }
 
     public AuthController(AuthService authService,
                           UserRepository userRepository,
                           UserMapper userMapper,
                           FacilityService facilityService,
                           LoginAttemptLimiter loginAttemptLimiter,
-                          AccessRequestService accessRequestService) {
+                          AccessRequestService accessRequestService,
+                          EmailVerificationService emailVerificationService,
+                          FacilityRepository facilityRepository) {
+        this.emailVerificationService = emailVerificationService;
+        this.facilityRepository = facilityRepository;
         this.loginAttemptLimiter = loginAttemptLimiter;
         this.accessRequestService = accessRequestService;
         this.authService = authService;
@@ -74,7 +91,40 @@ public class AuthController {
         if (professional) {
             accessRequestService.create(dto.email(), dto.professional());
         }
+        if (!asAdmin) {
+            userRepository.findByEmail(dto.email()).ifPresent(emailVerificationService::sendLink);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /** Enlace del correo de verificación (público: quien lo abre puede no haber iniciado sesión). */
+    @PostMapping("/verify-email")
+    public ResponseEntity<VerificationResultDTO> verifyEmail(@RequestBody VerifyEmailDTO dto) {
+        User user = emailVerificationService.verify(dto == null ? null : dto.token());
+        return ResponseEntity.ok(new VerificationResultDTO(true, false,
+                "Correo confirmado: " + user.getEmail() + ". Si tu solicitud de acceso cumplía las condiciones, "
+                        + "ya tienes el rol; vuelve a iniciar sesión para verlo."));
+    }
+
+    /** Reenvía el enlace de verificación a quien tiene la sesión. */
+    @PostMapping("/me/verify-email")
+    public ResponseEntity<VerificationResultDTO> resendVerification(Authentication authentication) {
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", authentication.getName()));
+        if (user.isEmailVerified()) {
+            return ResponseEntity.ok(new VerificationResultDTO(true, false, "Tu correo ya está confirmado."));
+        }
+        boolean sent = emailVerificationService.sendLink(user);
+        return ResponseEntity.ok(new VerificationResultDTO(false, sent, sent
+                ? "Te enviamos un enlace a " + user.getEmail() + " (vence en 24 horas)."
+                : "No se envió: espera un minuto entre enlaces. Si sigue sin llegar, el envío de correos está en mantenimiento."));
+    }
+
+    /** Establecimientos donde quien consulta es jefe (puede aprobar a su personal). */
+    @GetMapping("/me/managed-facilities")
+    public ResponseEntity<List<ManagedFacilityDTO>> managedFacilities(Authentication authentication) {
+        return ResponseEntity.ok(facilityRepository.findManagedBy(authentication.getName()).stream()
+                .map(f -> new ManagedFacilityDTO(f.getId(), f.getName())).toList());
     }
 
     /** Con límite de intentos fallidos por correo y por IP (LoginAttemptLimiter): 429 al superarlo. */
